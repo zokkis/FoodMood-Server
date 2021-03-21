@@ -5,6 +5,7 @@ const mysql = require('mysql');
 const logger = require('./logger');
 const fs = require('fs');
 const https = require('https');
+const perms = require('./permissions.json');
 
 const db = mysql.createConnection(require('./private_files/sqlConfigs.json'));
 
@@ -27,11 +28,15 @@ https.createServer({
 	.listen(3000);
 
 app.get('/', (request, response) => {
-	console.log(request.body)
 	response.status().status(200).send('<strong>ONLINE</strong>');
 });
 
-app.post('/register', checkUserIsNotNull, (request, response) => {
+app.post('/register', (request, response) => {
+	if (!request.body?.username || !request.body.password) {
+		errorHanlder('Missing username or password!', request);
+		return;
+	}
+
 	bcrypt.hash(request.body.password, 10)
 		.then(salt => {
 			const sqlInsertUser = 'INSERT INTO users set ?';
@@ -40,95 +45,43 @@ app.post('/register', checkUserIsNotNull, (request, response) => {
 				.catch(() => {
 					errorHanlder('Error! Username already taken or to long!', response);
 				});
-		}).catch(() => errorHanlder('Error while creating salt!', response));
-});
-
-app.post('/login', checkUserIsNotNull, (request, response) => {
-	const sql = 'SELECT * FROM users WHERE username like ?';
-	dbQuery(sql, request.body.username)
-		.then(data => {
-			if (data.length === 1) {
-				bcrypt.compare(request.body.password, data[0].password)
-					.then(isSame => {
-						if (isSame) {
-							delete data['password'];
-							response.status(200).send('Hello, ' + request.body.username + ' - Your data: ' + data);
-						} else {
-							errorHanlder('Correct username or password!', response);
-						}
-					})
-					.catch(() => errorHanlder('Internal error while compare!', response));
-			} else {
-				errorHanlder('Username or password is wrong!', response);
-			}
 		})
-		.catch(() => errorHanlder('Unknown error!', response));
+		.catch(() => errorHanlder('Error while creating salt!', response));
 });
 
-app.post('/changepassword', checkUserIsNotNull, (request, response) => {
+app.post('/login', checkAuth, (request, response) => {
+	response.status(200).send('Hello, ' + request.user.username + ' - Your data: ' + request.user);
+});
+
+app.post('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, response) => {
 	if (!request.body.newPassword) {
-		errorHanlder('Empty new password!', response);
+		errorHanlder('Empty newPassword!', response);
 		return;
 	}
-	const sqlGetUser = 'SELECT * from users where username like ?';
-	dbQuery(sqlGetUser, request.body.username)
-		.then(data => {
-			if (data.length === 1) {
-				bcrypt.compare(request.body.password, data[0].password)
-					.then(isSame => {
-						if (isSame) {
-							bcrypt.hash(request.body.newPassword, 10)
-								.then(salt => {
-									const sqlChangePassword = 'UPDATE users SET password = ? WHERE username = ?';
-									dbQuery(sqlChangePassword, [salt, request.body.username])
-										.then(() => response.status(200).send('Password changed!'))
-										.catch(() => {
-											errorHanlder('Error while changing password!', response);
-										});
-								}).catch(() => errorHanlder('Error while creating salt!', response));
-						} else {
-							errorHanlder('Correct username or password!', response);
-						}
-					})
-					.catch(() => errorHanlder('Internal error while compare!', response));
-			} else {
-				errorHanlder('Username or password is wrong!', response);
-			}
+
+	bcrypt.hash(request.body.newPassword, 10)
+		.then(salt => {
+			const sqlChangePassword = 'UPDATE users SET password = ? WHERE username = ?';
+			dbQuery(sqlChangePassword, [salt, request.user.username])
+				.then(() => response.status(200).send('Password changed!'))
+				.catch(() => {
+					errorHanlder('Error while changing password!', response);
+				});
 		})
-		.catch(() => {
-			errorHanlder('Error while getting user!', response);
-		});
+		.catch(() => errorHanlder('Error while creating salt!', response));
 });
 
-app.post('/changeusername', checkUserIsNotNull, (request, response) => {
+app.post('/changeusername', checkAuth, hasPerm(perms.EDIT_USERNAME), (request, response) => {
 	if (!request.body.newUsername) {
 		errorHanlder('Empty new username!', response);
 		return;
 	}
-	const sqlGetUser = 'SELECT * from users where username like ?';
-	dbQuery(sqlGetUser, request.body.username)
-		.then(data => {
-			if (data.length === 1) {
-				bcrypt.compare(request.body.password, data[0].password)
-					.then(isSame => {
-						if (isSame) {
-							const sqlChangeUsername = 'UPDATE users SET username = ? WHERE username = ?';
-							dbQuery(sqlChangeUsername, [request.body.newUsername, request.body.username])
-								.then(() => response.status(200).send('Username changed!'))
-								.catch(() => {
-									errorHanlder('Error while changing username!', response);
-								});
-						} else {
-							errorHanlder('Correct username or password!', response);
-						}
-					})
-					.catch(() => errorHanlder('Internal error while compare!', response));
-			} else {
-				errorHanlder('Username or password is wrong!', response);
-			}
-		})
+
+	const sqlChangeUsername = 'UPDATE users SET username = ? WHERE username = ?';
+	dbQuery(sqlChangeUsername, [request.body.newUsername, request.user.username])
+		.then(() => response.status(200).send('Username changed!'))
 		.catch(() => {
-			errorHanlder('Error while getting user!', response);
+			errorHanlder('Error while changing username!', response);
 		});
 });
 
@@ -142,10 +95,55 @@ const errorHanlder = (err, response = undefined, status = 500) => {
 	response?.status(status).send(err);
 }
 
-function checkUserIsNotNull(request, response, next) {
-	if (!request.body?.password && !request.body?.username) {
+function checkAuth(request, response, next) {
+	if (!request.headers.authorization) {
+		errorHanlder('Authentication required!', response, 401);
+		return;
+	}
+	const b64auth = request.headers.authorization.split(' ')[1]
+	const [username, password] = Buffer.from(b64auth, 'base64').toString().split(':')
+	if (username && password) {
+		const sql = 'SELECT * FROM users WHERE username like ?';
+		dbQuery(sql, username)
+			.then(data => {
+				if (data.length === 1) {
+					bcrypt.compare(password, data[0].password)
+						.then(isSame => {
+							if (isSame) {
+								request.user = data[0];
+								next();
+							} else {
+								errorHanlder('Correct username or password!', response);
+							}
+						})
+						.catch(() => errorHanlder('Internal error while compare!', response));
+				} else {
+					errorHanlder('Username or password is wrong!', response);
+				}
+			})
+			.catch(() => errorHanlder('Unknown error!', response));
+	} else {
 		errorHanlder('Username or password is missing!', response, 401);
 		return;
 	}
-	next();
+}
+
+function hasPerm(...perm) {
+	return hasPerm[perm] || (hasPerm[perm] = function (request, response, next) {
+		if (!request.user?.permissions || !containsAll(request.user.permissions, perm)) {
+			errorHanlder('No permissions for this action!', response);
+			return;
+		}
+		next();
+	})
+}
+
+function containsAll(needles, haystack) {
+	needles = JSON.parse(needles).map(ne => ne.id ?? ne);
+	for (const hey of haystack) {
+		if (needles.indexOf(hey.id) == -1) {
+			return false;
+		}
+	}
+	return true;
 }

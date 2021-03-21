@@ -1,0 +1,58 @@
+{
+	"VIEW_FOOD": {
+		"id": 1
+	},
+	"ADD_FOOD": {
+		"id": 2
+	},
+	"CHANGE_FOOD": {
+		"id": 3
+	},
+	"DELETE_FOOD": {
+		"id": 4
+	},
+	"EDIT_PASSWORD": {
+		"id": 5
+	},
+	"EDIT_USERNAME": {
+		"id": 6
+	},
+	"VIEW_USERS": {
+		"id": 7
+	},
+	"VIEW_USERS_FAVORITES": {
+		"id": 8
+	},
+	"SEND_MESSAGES": {
+		"id": 9
+	},
+	"CREATE_CATEGORY": {
+		"id": 10
+	},
+	"EDIT_CATEGORY": {
+		"id": 11
+	},
+	"DELETE_CATEGORY_LAST_CHILD": {
+		"id": 12
+	},
+	"DELETE_CATEGORY_WITH_CHILD": {
+		"id": 13
+	},
+	"DELETE_CATEGORY_MAIN": {
+		"id": 14
+	},
+	"DELETE_IMAGE": {
+		"id": 15
+	},
+	"ADD_IMAGES": {
+		"id": 150,
+		"value": 15
+	},
+	"ADD_VIDEOS": {
+		"id": 151,
+		"value": 1
+	},
+	"ADMIN": {
+		"id": 9001
+	}
+}

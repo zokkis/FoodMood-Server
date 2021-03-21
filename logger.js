@@ -1,15 +1,15 @@
 functions = {};
 
 functions.log = (...message) => {
-	console.log(getLoggingTime('LOG'), message.join(', '));
+	console.log(getLoggingTime('LOG'), ...message);
 };
 
 functions.warn = (...warn) => {
-	console.warn(getLoggingTime('WARN'), warn.join(', '));
+	console.warn(getLoggingTime('WARN'), ...warn);
 };
 
 functions.error = (...error) => {
-	console.error(getLoggingTime('ERROR'), error.join(', '));
+	console.error(getLoggingTime('ERROR'), ...error);
 };
 
 function getLoggingTime(loggingType) {
