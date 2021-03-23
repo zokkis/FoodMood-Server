@@ -44,8 +44,7 @@ app.get('/info', (request, response) => {
 
 app.post('/register', (request, response) => {
 	if (!request.body?.username || !request.body.password) {
-		errorHanlder('Missing username or password!', request);
-		return;
+		return errorHanlder('Missing username or password!', request);
 	}
 
 	bcrypt.hash(request.body.password, 10)
@@ -60,14 +59,13 @@ app.post('/register', (request, response) => {
 		.catch(() => errorHanlder('Error while creating salt!', response));
 });
 
-app.post('/login', checkAuth, (request, response) => {
+app.get('/login', checkAuth, (request, response) => {
 	response.status(200).send(request.user);
 });
 
-app.post('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, response) => {
+app.put('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, response) => {
 	if (!request.body.newPassword) {
-		errorHanlder('Empty newPassword!', response);
-		return;
+		return errorHanlder('Empty newPassword!', response);
 	}
 
 	bcrypt.hash(request.body.newPassword, 10)
@@ -82,10 +80,9 @@ app.post('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, r
 		.catch(() => errorHanlder('Error while creating salt!', response));
 });
 
-app.post('/changeusername', checkAuth, hasPerm(perms.EDIT_USERNAME), (request, response) => {
+app.put('/changeusername', checkAuth, hasPerm(perms.EDIT_USERNAME), (request, response) => {
 	if (!request.body.newUsername) {
-		errorHanlder('Empty new username!', response);
-		return;
+		return errorHanlder('Empty new username!', response);
 	}
 
 	const sqlChangeUsername = 'UPDATE users SET username = ? WHERE username = ?';
@@ -108,8 +105,7 @@ const errorHanlder = (err, response = undefined, status = 500) => {
 
 function checkAuth(request, response, next) {
 	if (!request.headers.authorization) {
-		errorHanlder('Authentication required!', response, 401);
-		return;
+		return errorHanlder('Authentication required!', response, 401);
 	}
 	const b64auth = request.headers.authorization.split(' ')[1]
 	const [username, password] = Buffer.from(b64auth, 'base64').toString().split(':')
@@ -136,16 +132,14 @@ function checkAuth(request, response, next) {
 			})
 			.catch(() => errorHanlder('Unknown error!', response));
 	} else {
-		errorHanlder('Username or password is missing!', response, 401);
-		return;
+		return errorHanlder('Username or password is missing!', response, 401);
 	}
 }
 
 function hasPerm(...perm) {
 	return hasPerm[perm] || (hasPerm[perm] = function (request, response, next) {
 		if (!request.user?.permissions || !containsAll(request.user.permissions, perm)) {
-			errorHanlder('No permissions for this action!', response);
-			return;
+			return errorHanlder('No permissions for this action!', response);
 		}
 		next();
 	})
