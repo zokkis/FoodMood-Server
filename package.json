@@ -1,16 +1,20 @@
 {
-  "name": "mysqlserver",
-  "version": "1.0.0",
-  "description": "",
-  "main": "app.js",
-  "scripts": {},
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "bcrypt": "^5.0.1",
-    "cors": "^2.8.5",
-    "express": "^4.17.1",
-    "mysql": "^2.18.1"
-  }
+	"name": "mysqlserver",
+	"version": "1.0.0",
+	"description": "",
+	"main": "app.js",
+	"scripts": {
+		"dev": "nodemon -- --dev",
+		"prod": "node app.js"
+	},
+	"keywords": [],
+	"author": "Zokki",
+	"license": "GPL-3.0",
+	"dependencies": {
+		"bcrypt": "^5.0.1",
+		"commander": "^7.2.0",
+		"cors": "^2.8.5",
+		"express": "^4.17.1",
+		"mysql": "^2.18.1"
+	}
 }

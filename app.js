@@ -6,6 +6,13 @@ const logger = require('./logger');
 const fs = require('fs');
 const https = require('https');
 const perms = require('./permissions.json');
+const package = require('./package.json');
+const { program, Option } = require('commander');
+
+program
+	.addOption(new Option('-d, --dev [boo]', 'run in dev').choices([false, true]).default(false))
+	.parse();
+const options = program.opts();
 
 const db = mysql.createConnection(require('./private_files/sqlConfigs.json'));
 
@@ -25,10 +32,14 @@ https.createServer({
 	key: fs.readFileSync('./private_files/private.pem'),
 	cert: fs.readFileSync('./private_files/cert.pem')
 }, app)
-	.listen(3000);
+	.listen(3000, () => logger.log('Server started!'));
 
 app.get('/', (request, response) => {
 	response.status().status(200).send('<strong>ONLINE</strong>');
+});
+
+app.get('/info', (request, response) => {
+	response.status().status(200).send({ isOnline: true, version: package.version, isDev: options.dev });
 });
 
 app.post('/register', (request, response) => {
@@ -41,16 +52,16 @@ app.post('/register', (request, response) => {
 		.then(salt => {
 			const sqlInsertUser = 'INSERT INTO users set ?';
 			dbQuery(sqlInsertUser, { ...request.body, password: salt })
-				.then(() => response.status(200).send('User registered!'))
+				.then(() => response.status(200).send())
 				.catch(() => {
-					errorHanlder('Error! Username already taken or to long!', response);
+					errorHanlder('Error! Username already taken!', response);
 				});
 		})
 		.catch(() => errorHanlder('Error while creating salt!', response));
 });
 
 app.post('/login', checkAuth, (request, response) => {
-	response.status(200).send('Hello, ' + request.user.username + ' - Your data: ' + request.user);
+	response.status(200).send(request.user);
 });
 
 app.post('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, response) => {
@@ -63,7 +74,7 @@ app.post('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, r
 		.then(salt => {
 			const sqlChangePassword = 'UPDATE users SET password = ? WHERE username = ?';
 			dbQuery(sqlChangePassword, [salt, request.user.username])
-				.then(() => response.status(200).send('Password changed!'))
+				.then(() => response.status(200).send())
 				.catch(() => {
 					errorHanlder('Error while changing password!', response);
 				});
@@ -79,7 +90,7 @@ app.post('/changeusername', checkAuth, hasPerm(perms.EDIT_USERNAME), (request, r
 
 	const sqlChangeUsername = 'UPDATE users SET username = ? WHERE username = ?';
 	dbQuery(sqlChangeUsername, [request.body.newUsername, request.user.username])
-		.then(() => response.status(200).send('Username changed!'))
+		.then(() => response.status(200).send())
 		.catch(() => {
 			errorHanlder('Error while changing username!', response);
 		});
@@ -111,6 +122,8 @@ function checkAuth(request, response, next) {
 						.then(isSame => {
 							if (isSame) {
 								request.user = data[0];
+								request.user.permissions = JSON.parse(request.user.permissions);
+								delete request.user.password;
 								next();
 							} else {
 								errorHanlder('Correct username or password!', response);
@@ -138,10 +151,10 @@ function hasPerm(...perm) {
 	})
 }
 
-function containsAll(needles, haystack) {
-	needles = JSON.parse(needles).map(ne => ne.id ?? ne);
-	for (const hey of haystack) {
-		if (needles.indexOf(hey.id) == -1) {
+function containsAll(have, mustHave) {
+	have = JSON.parse(have).map(perm => perm.id ?? perm);
+	for (const must of mustHave) {
+		if (have.indexOf(must.id) == -1) {
 			return false;
 		}
 	}
