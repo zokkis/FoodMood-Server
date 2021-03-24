@@ -1,18 +1,18 @@
 functions = {};
 
 functions.log = (...message) => {
-	console.log(getLoggingTime('LOG'), ...message);
+	console.log(getLoggingPrefix('LOG'), ...message);
 };
 
 functions.warn = (...warn) => {
-	console.warn(getLoggingTime('WARN'), ...warn);
+	console.warn(getLoggingPrefix('WARN'), ...warn);
 };
 
 functions.error = (...error) => {
-	console.error(getLoggingTime('ERROR'), ...error);
+	console.error(getLoggingPrefix('ERROR'), ...error);
 };
 
-function getLoggingTime(loggingType) {
+const getLoggingPrefix = (loggingType) => {
 	const date = new Date();
 	const month = String(date.getMonth() + 1).padStart(2, '0');
 	const day = String(date.getDate()).padStart(2, '0');

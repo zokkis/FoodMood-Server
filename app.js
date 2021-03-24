@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
 const mysql = require('mysql');
-const logger = require('./logger');
+const { log, error } = require('./logger');
 const fs = require('fs');
 const https = require('https');
 const perms = require('./permissions.json');
@@ -20,7 +20,7 @@ db.connect(err => {
 	if (err) {
 		throw err;
 	}
-	logger.log('MySQL connected...');
+	log('MySQL connected...');
 })
 
 const app = express();
@@ -32,17 +32,20 @@ https.createServer({
 	key: fs.readFileSync('./private_files/private.pem'),
 	cert: fs.readFileSync('./private_files/cert.pem')
 }, app)
-	.listen(3000, () => logger.log('Server started!'));
+	.listen(3000, () => log('Server started!'));
 
 app.get('/', (request, response) => {
-	response.status().status(200).send('<strong>ONLINE</strong>');
+	log('Root');
+	response.status(200).send('<strong>ONLINE</strong>');
 });
 
 app.get('/info', (request, response) => {
-	response.status().status(200).send({ isOnline: true, version: package.version, isDev: options.dev });
+	log('Info')
+	response.status(200).send({ isOnline: true, version: package.version, isDev: options.dev });
 });
 
 app.post('/register', (request, response) => {
+	log('Register', request.body);
 	if (!request.body?.username || !request.body.password) {
 		return errorHanlder('Missing username or password!', request);
 	}
@@ -52,19 +55,21 @@ app.post('/register', (request, response) => {
 			const sqlInsertUser = 'INSERT INTO users set ?';
 			dbQuery(sqlInsertUser, { ...request.body, password: salt })
 				.then(() => response.status(200).send())
-				.catch(() => {
-					errorHanlder('Error! Username already taken!', response);
-				});
+				.then(() => log('Register success'))
+				.catch(() => errorHanlder('Error! Username already taken!', response));
 		})
 		.catch(() => errorHanlder('Error while creating salt!', response));
 });
 
 app.get('/login', checkAuth, (request, response) => {
-	response.status(200).send(request.user);
+	log('Login', request.user)
+	response.status(200).send(request.user)
+		.then(() => log('Login success'));
 });
 
 app.put('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, response) => {
-	if (!request.body.newPassword) {
+	log('Changepassword', request.user, request.body?.newPassword);
+	if (!request.body?.newPassword) {
 		return errorHanlder('Empty newPassword!', response);
 	}
 
@@ -73,24 +78,23 @@ app.put('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, re
 			const sqlChangePassword = 'UPDATE users SET password = ? WHERE username = ?';
 			dbQuery(sqlChangePassword, [salt, request.user.username])
 				.then(() => response.status(200).send())
-				.catch(() => {
-					errorHanlder('Error while changing password!', response);
-				});
+				.then(() => log('Change success'))
+				.catch(() => errorHanlder('Error while changing password!', response));
 		})
 		.catch(() => errorHanlder('Error while creating salt!', response));
 });
 
 app.put('/changeusername', checkAuth, hasPerm(perms.EDIT_USERNAME), (request, response) => {
-	if (!request.body.newUsername) {
+	log('Changeusername', request.user, request.body?.newUsername);
+	if (!request.body?.newUsername) {
 		return errorHanlder('Empty new username!', response);
 	}
 
 	const sqlChangeUsername = 'UPDATE users SET username = ? WHERE username = ?';
 	dbQuery(sqlChangeUsername, [request.body.newUsername, request.user.username])
 		.then(() => response.status(200).send())
-		.catch(() => {
-			errorHanlder('Error while changing username!', response);
-		});
+		.then(() => log('Change success'))
+		.catch(() => errorHanlder('Error while changing username!', response));
 });
 
 const dbQuery = (sql, data) => {
@@ -99,13 +103,14 @@ const dbQuery = (sql, data) => {
 }
 
 const errorHanlder = (err, response = undefined, status = 500) => {
-	logger.error(err);
+	error(err);
 	response?.status(status).send(err);
 }
 
 function checkAuth(request, response, next) {
+	log('Check Auth of'. request.headers.authorization);
 	if (!request.headers.authorization) {
-		return errorHanlder('Authentication required!', response, 401);
+		return errorHanlder('Authentication required!', response, 400);
 	}
 	const b64auth = request.headers.authorization.split(' ')[1]
 	const [username, password] = Buffer.from(b64auth, 'base64').toString().split(':')
@@ -113,34 +118,35 @@ function checkAuth(request, response, next) {
 		const sql = 'SELECT * FROM users WHERE username like ?';
 		dbQuery(sql, username)
 			.then(data => {
-				if (data.length === 1) {
-					bcrypt.compare(password, data[0].password)
-						.then(isSame => {
-							if (isSame) {
-								request.user = data[0];
-								request.user.permissions = JSON.parse(request.user.permissions);
-								delete request.user.password;
-								next();
-							} else {
-								errorHanlder('Correct username or password!', response);
-							}
-						})
-						.catch(() => errorHanlder('Internal error while compare!', response));
-				} else {
-					errorHanlder('Username or password is wrong!', response);
+				if (data.length !== 1) {
+					return errorHanlder('Username or password is wrong!', response, 401);
 				}
+				bcrypt.compare(password, data[0].password)
+					.then(isSame => {
+						if (!isSame) {
+							return errorHanlder('Correct username or password!', response, 400);
+						}
+						request.user = data[0];
+						request.user.permissions = JSON.parse(request.user.permissions);
+						delete request.user.password;
+						log('Auth success', request.user);
+						next();
+					})
+					.catch(() => errorHanlder('Internal error while compare!', response));
 			})
 			.catch(() => errorHanlder('Unknown error!', response));
 	} else {
-		return errorHanlder('Username or password is missing!', response, 401);
+		return errorHanlder('Username or password is missing!', response, 400);
 	}
 }
 
-function hasPerm(...perm) {
-	return hasPerm[perm] || (hasPerm[perm] = function (request, response, next) {
-		if (!request.user?.permissions || !containsAll(request.user.permissions, perm)) {
-			return errorHanlder('No permissions for this action!', response);
+function hasPerm(...perms) {
+	return hasPerm[perms] || (hasPerm[perms] = function (request, response, next) {
+		log('Check that', request.user, 'has', perms);
+		if (!request.user?.permissions || !containsAll(request.user.permissions, perms)) {
+			return errorHanlder('No permissions for this action!', response, 403);
 		}
+		log('Permcheck success');
 		next();
 	})
 }
