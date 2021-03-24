@@ -110,7 +110,7 @@ const errorHanlder = (err, response = undefined, status = 500) => {
 }
 
 function checkAuth(request, response, next) {
-	log('Check Auth of'. request.headers.authorization);
+	log('Check Auth of', request.headers.authorization);
 	if (!request.headers.authorization) {
 		return errorHanlder('Authentication required!', response, 400);
 	}
