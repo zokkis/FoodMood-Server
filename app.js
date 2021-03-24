@@ -23,6 +23,8 @@ db.connect(err => {
 	log('MySQL connected...');
 })
 
+const savedUsers = [];
+
 const app = express();
 
 app.use(cors());
@@ -114,30 +116,48 @@ function checkAuth(request, response, next) {
 	}
 	const b64auth = request.headers.authorization.split(' ')[1]
 	const [username, password] = Buffer.from(b64auth, 'base64').toString().split(':')
-	if (username && password) {
-		const sql = 'SELECT * FROM users WHERE username like ?';
-		dbQuery(sql, username)
-			.then(data => {
-				if (data.length !== 1) {
-					return errorHanlder('Username or password is wrong!', response, 401);
-				}
-				bcrypt.compare(password, data[0].password)
-					.then(isSame => {
-						if (!isSame) {
-							return errorHanlder('Correct username or password!', response, 400);
-						}
-						request.user = data[0];
-						request.user.permissions = JSON.parse(request.user.permissions);
-						delete request.user.password;
-						log('Auth success', request.user);
-						next();
-					})
-					.catch(() => errorHanlder('Internal error while compare!', response));
-			})
-			.catch(() => errorHanlder('Unknown error!', response));
-	} else {
+	if (!username || !password) {
 		return errorHanlder('Username or password is missing!', response, 400);
 	}
+
+	const user = savedUsers.find(user => user.username === username);
+	if(!!user) {
+		log('Check saved auth', user)
+		return bcrypt.compare(password, user.password)
+			.then(isSame => {
+				if (!isSame) {
+					return errorHanlder('Correct username or password!', response, 400);
+				}
+				request.user = user;
+				request.user.permissions = JSON.parse(request.user.permissions);
+				delete request.user.password;
+				log('Saved auth success', request.user);
+				next();
+			})
+			.catch(() => errorHanlder('Internal error while compare!', response));
+	}
+//FIXME duplicated code
+	const sql = 'SELECT * FROM users WHERE username like ?';
+	dbQuery(sql, username)
+		.then(data => {
+			if (data.length !== 1) {
+				return errorHanlder('Username or password is wrong!', response, 401);
+			}
+			bcrypt.compare(password, data[0].password)
+				.then(isSame => {
+					if (!isSame) {
+						return errorHanlder('Correct username or password!', response, 400);
+					}
+					savedUsers.push(data[0]);
+					request.user = data[0];
+					request.user.permissions = JSON.parse(request.user.permissions);
+					delete request.user.password;
+					log('Auth success', request.user);
+					next();
+				})
+				.catch(() => errorHanlder('Internal error while compare!', response));
+		})
+		.catch(() => errorHanlder('Unknown error!', response));
 }
 
 function hasPerm(...perms) {
