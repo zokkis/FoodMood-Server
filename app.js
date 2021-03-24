@@ -23,7 +23,7 @@ db.connect(err => {
 	log('MySQL connected...');
 })
 
-const savedUsers = [];
+const cachedUsers = [];
 
 const app = express();
 
@@ -120,44 +120,33 @@ function checkAuth(request, response, next) {
 		return errorHanlder('Username or password is missing!', response, 400);
 	}
 
-	const user = savedUsers.find(user => user.username === username);
-	if(!!user) {
-		log('Check saved auth', user)
-		return bcrypt.compare(password, user.password)
-			.then(isSame => {
-				if (!isSame) {
-					return errorHanlder('Correct username or password!', response, 400);
+	let user = cachedUsers.find(user => user.username === username);
+	const isCached = !!user;
+	if(isCached) {
+		const sql = 'SELECT * FROM users WHERE username like ?';
+		dbQuery(sql, username)
+			.then(data => {
+				if (data.length !== 1) {
+					return errorHanlder('Username or password is wrong!', response, 401);
 				}
-				request.user = user;
-				request.user.permissions = JSON.parse(request.user.permissions);
-				delete request.user.password;
-				log('Saved auth success', request.user);
-				next();
+				user = data[0];
 			})
-			.catch(() => errorHanlder('Internal error while compare!', response));
+			.catch(() => errorHanlder('Unknown error!', response));
 	}
-//FIXME duplicated code
-	const sql = 'SELECT * FROM users WHERE username like ?';
-	dbQuery(sql, username)
-		.then(data => {
-			if (data.length !== 1) {
-				return errorHanlder('Username or password is wrong!', response, 401);
+
+	bcrypt.compare(password, user.password)
+		.then(isSame => {
+			if (!isSame) {
+				return errorHanlder('Correct username or password!', response, 400);
 			}
-			bcrypt.compare(password, data[0].password)
-				.then(isSame => {
-					if (!isSame) {
-						return errorHanlder('Correct username or password!', response, 400);
-					}
-					savedUsers.push(data[0]);
-					request.user = data[0];
-					request.user.permissions = JSON.parse(request.user.permissions);
-					delete request.user.password;
-					log('Auth success', request.user);
-					next();
-				})
-				.catch(() => errorHanlder('Internal error while compare!', response));
+			isCached ? null : cachedUsers.push(user);
+			request.user = user;
+			request.user.permissions = JSON.parse(request.user.permissions);
+			delete request.user.password;
+			log(isCached ? 'Cached auth success' : 'Auth success', request.user);
+			next();
 		})
-		.catch(() => errorHanlder('Unknown error!', response));
+		.catch(() => errorHanlder('Internal error while compare!', response));
 }
 
 function hasPerm(...perms) {
