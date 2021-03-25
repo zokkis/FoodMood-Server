@@ -78,7 +78,7 @@ app.get('/login', checkAuth, (request, response) => {
 
 app.delete('/deleteuser', checkAuth, (request, response) => {
 	logger.log('Delete User', request.user);
-	const sqlDeleteUser = 'DELETE FROM users WHERE username ?';
+	const sqlDeleteUser = 'DELETE FROM users WHERE username = ?';
 	dbQuery(sqlDeleteUser, request.user.username)
 		.then(() => deleteCachedUser(request.user.username))
 		.then(() => response.sendStatus(200))
