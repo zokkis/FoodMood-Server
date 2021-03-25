@@ -1,5 +1,7 @@
-const { error } = require('./logger');
+const Logger = require('./logger');
 const _ = require('lodash');
+
+const logger = new Logger('Users');
 
 functions = {};
 
@@ -7,7 +9,7 @@ const cachedUsers = [];
 
 functions.addCachedUser = (user) => {
 	if (!user) {
-		return error('addCachedUser - no user', user);
+		return logger.error('addCachedUser - no user', user);
 	}
 	functions.updateCachedUser(user);
 	cachedUsers.push(user);
@@ -15,18 +17,18 @@ functions.addCachedUser = (user) => {
 
 functions.deleteCachedUser = (username) => {
 	if (!username) {
-		return error('deleteCachedUser - no user', username);
+		return logger.error('deleteCachedUser - no user', username);
 	}
 	const index = cachedUsers.findIndex(u => u.username === username);
 	if (index === -1) {
-		return error('No user found for', username);
+		return logger.error('No user found for', username);
 	}
 	cachedUsers.splice(index, 1);
 }
 
 functions.updateCachedUser = (user) => {
 	if (!user) {
-		return error('updateCachedUser - no user', user);
+		return logger.error('updateCachedUser - no user', user);
 	}
 	user.cachedTime = Date.now();
 }
@@ -35,7 +37,7 @@ functions.getCachedUsers = () => cachedUsers;
 
 functions.prepareUserToSend = (user) => {
 	if (!user) {
-		return error('prepareUserToSend - no user', user);
+		return logger.error('prepareUserToSend - no user', user);
 	}
 	user = _.merge({}, user, {permissions: JSON.parse(user.permissions)});
 	delete user.password;

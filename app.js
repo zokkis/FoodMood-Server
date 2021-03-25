@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
 const mysql = require('mysql');
-const { log, error } = require('./logger');
+const Logger = require('./logger');
 const fs = require('fs');
 const https = require('https');
 const perms = require('./permissions.json');
@@ -16,13 +16,15 @@ program
 	.parse();
 const options = program.opts();
 
+const logger = new Logger('App');
+
 const db = mysql.createConnection(require('./private_files/sqlConfigs.json'));
 
 db.connect(err => {
 	if (err) {
 		throw err;
 	}
-	log('MySQL connected...');
+	logger.logger.log('MySQL connected...');
 });
 
 const app = express();
@@ -34,20 +36,20 @@ https.createServer({
 	key: fs.readFileSync('./private_files/private.pem'),
 	cert: fs.readFileSync('./private_files/cert.pem')
 }, app)
-	.listen(3000, () => log('Server started!'));
+	.listen(3000, () => logger.log('Server started!'));
 
 app.get('/', (request, response) => {
-	log('Root');
+	logger.log('Root');
 	response.status(200).send('<strong>ONLINE</strong>');
 });
 
 app.get('/info', (request, response) => {
-	log('Info')
+	logger.log('Info')
 	response.status(200).send({ isOnline: true, version: package.version, isDev: options.dev });
 });
 
 app.post('/register', (request, response) => {
-	log('Register', request.body);
+	logger.log('Register', request.body);
 	if (!request.body?.username || !request.body.password) {
 		return errorHanlder('Missing username or password!', request);
 	}
@@ -58,20 +60,20 @@ app.post('/register', (request, response) => {
 			//@TEST request with data which isnt in table
 			dbQuery(sqlInsertUser, { ...request.body, password: salt })
 				.then(() => response.sendStatus(200))
-				.then(() => log('Register success'))
+				.then(() => logger.log('Register success'))
 				.catch(() => errorHanlder('Error! Username already taken!', response));
 		})
 		.catch(() => errorHanlder('Error while creating salt!', response));
 });
 
 app.get('/login', checkAuth, (request, response) => {
-	log('Login', request.user)
+	logger.log('Login', request.user)
 	response.status(200).send(request.user)
-		.then(() => log('Login success'));
+		.then(() => logger.log('Login success'));
 });
 
 app.put('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, response) => {
-	log('Changepassword', request.user, request.body?.newPassword);
+	logger.log('Changepassword', request.user, request.body?.newPassword);
 	if (!request.body?.newPassword) {
 		return errorHanlder('Empty newPassword!', response);
 	}
@@ -81,14 +83,14 @@ app.put('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, re
 			const sqlChangePassword = 'UPDATE users SET password = ? WHERE username = ?';
 			dbQuery(sqlChangePassword, [salt, request.user.username])
 				.then(() => response.sendStatus(200))
-				.then(() => log('Change success'))
+				.then(() => logger.log('Change success'))
 				.catch(() => errorHanlder('Error while changing password!', response));
 		})
 		.catch(() => errorHanlder('Error while creating salt!', response));
 });
 
 app.put('/changeusername', checkAuth, hasPerm(perms.EDIT_USERNAME), (request, response) => {
-	log('Changeusername', request.user, request.body?.newUsername);
+	logger.log('Changeusername', request.user, request.body?.newUsername);
 	if (!request.body?.newUsername) {
 		return errorHanlder('Empty new username!', response);
 	}
@@ -96,12 +98,12 @@ app.put('/changeusername', checkAuth, hasPerm(perms.EDIT_USERNAME), (request, re
 	const sqlChangeUsername = 'UPDATE users SET username = ? WHERE username = ?';
 	dbQuery(sqlChangeUsername, [request.body.newUsername, request.user.username])
 		.then(() => response.sendStatus(200))
-		.then(() => log('Change success'))
+		.then(() => logger.log('Change success'))
 		.catch(() => errorHanlder('Error while changing username!', response));
 });
 
 app.delete('/logout', checkAuth, (request, response) => {
-	log('Logout', request.user.username);
+	logger.log('Logout', request.user.username);
 	deleteCachedUser(request.user.username);
 	response.sendStatus(200);
 })
@@ -112,12 +114,12 @@ const dbQuery = (sql, data) => {
 }
 
 const errorHanlder = (err, response = undefined, status = 500) => {
-	error(err);
+	logger.error(err);
 	response?.status(status).send(err);
 }
 
 function checkAuth(request, response, next) {
-	log('Check Auth of', request.headers.authorization);
+	logger.log('Check Auth of', request.headers.authorization);
 	if (!request.headers.authorization) {
 		return errorHanlder('Authentication required!', response, 400);
 	}
@@ -152,7 +154,7 @@ async function checkAuthOf(username, password, next) {
 			}
 			isCached ? updateCachedUser(user) : addCachedUser(user);
 			request.user = prepareUserToSend(user);
-			log(isCached ? 'Cached auth success' : 'Auth success', request.user);
+			logger.log(isCached ? 'Cached auth success' : 'Auth success', request.user);
 			next();
 		})
 		.catch(() => errorHanlder('Internal error while compare!', response));
@@ -160,11 +162,11 @@ async function checkAuthOf(username, password, next) {
 
 function hasPerm(...perms) {
 	return hasPerm[perms] || (hasPerm[perms] = function (request, response, next) {
-		log('Check that', request.user, 'has', perms);
+		logger.log('Check that', request.user, 'has', perms);
 		if (!request.user?.permissions || !containsAll(request.user.permissions, perms)) {
 			return errorHanlder('No permissions for this action!', response, 403);
 		}
-		log('Permcheck success');
+		logger.log('Permcheck success');
 		next();
 	})
 }
