@@ -8,9 +8,11 @@ const https = require('https');
 const perms = require('./permissions.json');
 const package = require('./package.json');
 const { program, Option } = require('commander');
+const { addCachedUser, updateCachedUser, getCachedUsers, prepareUserToSend } = require('./users');
 
 program
-	.addOption(new Option('-d, --dev [boo]', 'run in dev').choices([false, true]).default(false))
+	// .addOption(new Option('-d, --dev [boo]', 'run in dev').choices([false, true]).default(false)) //@TEST
+	.addOption(new Option('-d, --dev', 'run in dev').default(false))
 	.parse();
 const options = program.opts();
 
@@ -21,9 +23,7 @@ db.connect(err => {
 		throw err;
 	}
 	log('MySQL connected...');
-})
-
-const cachedUsers = [];
+});
 
 const app = express();
 
@@ -55,6 +55,7 @@ app.post('/register', (request, response) => {
 	bcrypt.hash(request.body.password, 10)
 		.then(salt => {
 			const sqlInsertUser = 'INSERT INTO users set ?';
+			//@TEST request with data which isnt in table
 			dbQuery(sqlInsertUser, { ...request.body, password: salt })
 				.then(() => response.status(200).send())
 				.then(() => log('Register success'))
@@ -120,11 +121,15 @@ function checkAuth(request, response, next) {
 		return errorHanlder('Username or password is missing!', response, 400);
 	}
 
-	let user = cachedUsers.find(user => user.username === username);
+	checkAuthOf(username, password, next);
+}
+
+async function checkAuthOf(username, password, next) {
+	const user = getCachedUsers().find(user => user.username === username);
 	const isCached = !!user;
 	if(isCached) {
 		const sql = 'SELECT * FROM users WHERE username like ?';
-		dbQuery(sql, username)
+		await dbQuery(sql, username)
 			.then(data => {
 				if (data.length !== 1) {
 					return errorHanlder('Username or password is wrong!', response, 401);
@@ -139,10 +144,8 @@ function checkAuth(request, response, next) {
 			if (!isSame) {
 				return errorHanlder('Correct username or password!', response, 400);
 			}
-			isCached ? null : cachedUsers.push(user);
-			request.user = user;
-			request.user.permissions = JSON.parse(request.user.permissions);
-			delete request.user.password;
+			isCached ? updateCachedUser(user) : addCachedUser(user);
+			request.user = prepareUserToSend(user);
 			log(isCached ? 'Cached auth success' : 'Auth success', request.user);
 			next();
 		})
