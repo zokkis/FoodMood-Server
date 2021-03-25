@@ -1,58 +1,70 @@
 {
 	"VIEW_FOOD": {
-		"id": 1
+		"id": 100
 	},
 	"ADD_FOOD": {
-		"id": 2
+		"id": 200
 	},
 	"CHANGE_FOOD": {
-		"id": 3
+		"id": 300
 	},
 	"DELETE_FOOD": {
-		"id": 4
+		"id": 400
 	},
 	"EDIT_PASSWORD": {
-		"id": 5
+		"id": 500
 	},
 	"EDIT_USERNAME": {
-		"id": 6
+		"id": 600
 	},
 	"VIEW_USERS": {
-		"id": 7
+		"id": 700
 	},
 	"VIEW_USERS_FAVORITES": {
-		"id": 8
+		"id": 800
 	},
 	"SEND_MESSAGES": {
-		"id": 9
+		"id": 900
+	},
+	"EDIT_MESSAGES": {
+		"id": 1000
 	},
 	"CREATE_CATEGORY": {
-		"id": 10
+		"id": 1100
 	},
 	"EDIT_CATEGORY": {
-		"id": 11
+		"id": 1200
 	},
 	"DELETE_CATEGORY_LAST_CHILD": {
-		"id": 12
+		"id": 1300
 	},
 	"DELETE_CATEGORY_WITH_CHILD": {
-		"id": 13
+		"id": 1400
 	},
 	"DELETE_CATEGORY_MAIN": {
-		"id": 14
+		"id": 1500
 	},
-	"DELETE_IMAGE": {
-		"id": 15
+	"VIEW_IMAGES": {
+		"id": 1600
+	},
+	"VIEW_VIDEOS": {
+		"id": 1700
+	},
+	"DELETE_IMAGES": {
+		"id": 1800
+	},
+	"DELETE_VIDEOS": {
+		"id": 1900
 	},
 	"ADD_IMAGES": {
-		"id": 150,
+		"id": 15000,
 		"value": 15
 	},
 	"ADD_VIDEOS": {
-		"id": 151,
+		"id": 15100,
 		"value": 1
 	},
 	"ADMIN": {
-		"id": 9001
+		"id": 900001
 	}
 }
