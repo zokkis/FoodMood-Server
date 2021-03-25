@@ -8,7 +8,7 @@ const https = require('https');
 const perms = require('./permissions.json');
 const package = require('./package.json');
 const { program, Option } = require('commander');
-const { addCachedUser, updateCachedUser, getCachedUsers, prepareUserToSend } = require('./users');
+const { addCachedUser, updateCachedUser, getCachedUsers, prepareUserToSend, deleteCachedUser } = require('./users');
 
 program
 	// .addOption(new Option('-d, --dev [boo]', 'run in dev').choices([false, true]).default(false)) //@TEST
@@ -57,7 +57,7 @@ app.post('/register', (request, response) => {
 			const sqlInsertUser = 'INSERT INTO users set ?';
 			//@TEST request with data which isnt in table
 			dbQuery(sqlInsertUser, { ...request.body, password: salt })
-				.then(() => response.status(200).send())
+				.then(() => response.sendStatus(200))
 				.then(() => log('Register success'))
 				.catch(() => errorHanlder('Error! Username already taken!', response));
 		})
@@ -80,7 +80,7 @@ app.put('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, re
 		.then(salt => {
 			const sqlChangePassword = 'UPDATE users SET password = ? WHERE username = ?';
 			dbQuery(sqlChangePassword, [salt, request.user.username])
-				.then(() => response.status(200).send())
+				.then(() => response.sendStatus(200))
 				.then(() => log('Change success'))
 				.catch(() => errorHanlder('Error while changing password!', response));
 		})
@@ -95,10 +95,16 @@ app.put('/changeusername', checkAuth, hasPerm(perms.EDIT_USERNAME), (request, re
 
 	const sqlChangeUsername = 'UPDATE users SET username = ? WHERE username = ?';
 	dbQuery(sqlChangeUsername, [request.body.newUsername, request.user.username])
-		.then(() => response.status(200).send())
+		.then(() => response.sendStatus(200))
 		.then(() => log('Change success'))
 		.catch(() => errorHanlder('Error while changing username!', response));
 });
+
+app.delete('/logout', checkAuth, (request, response) => {
+	log('Logout', request.user.username);
+	deleteCachedUser(request.user.username);
+	response.sendStatus(200);
+})
 
 const dbQuery = (sql, data) => {
 	return new Promise((solve, reject) =>
