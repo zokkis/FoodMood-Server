@@ -55,15 +55,14 @@ app.post('/register', (request, response) => {
 
 	bcrypt.hash(request.body.password, 10)
 		.then(salt => {
-			const sqlInsertUser = 'INSERT INTO users set ?';
-
 			for (const a in request.body) {
 				if (!getAllowedProperties().includes(a)) {
-					logger.warn('To much data in register body!', request.body)
+					logger.warn('To much data in register body!', a)
 					delete request.body[a];
 				}
 			}
 
+			const sqlInsertUser = 'INSERT INTO users set ?';
 			dbQuery(sqlInsertUser, { ...request.body, password: salt })
 				.then(() => response.sendStatus(200))
 				.then(() => logger.log('Register success'))
@@ -75,7 +74,16 @@ app.post('/register', (request, response) => {
 app.get('/login', checkAuth, (request, response) => {
 	logger.log('Login', request.user);
 	response.status(200).send(request.user);
-	logger.log('Login success');
+});
+
+app.delete('/deleteuser', checkAuth, (request, response) => {
+	logger.log('Delete User', request.user);
+	const sqlDeleteUser = 'DELETE FROM users WHERE username ?';
+	dbQuery(sqlDeleteUser, request.user.username)
+		.then(() => deleteCachedUser(request.user.username))
+		.then(() => response.sendStatus(200))
+		.then(() => logger.log('Delete success'))
+		.catch(() => errorHanlder('Error! While deleting!', response));
 });
 
 app.put('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, response) => {

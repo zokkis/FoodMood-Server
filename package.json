@@ -5,7 +5,8 @@
 	"main": "app.js",
 	"scripts": {
 		"dev": "nodemon -- --dev",
-		"prod": "node app.js"
+		"prod": "node app.js",
+		"killPort": "sudo kill -9 $(sudo lsof -t -i:3000)"
 	},
 	"keywords": [],
 	"author": "Zokki",
