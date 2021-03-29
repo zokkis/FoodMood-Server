@@ -1,0 +1,10 @@
+use foods;
+create table ducuments (
+	ducumentId INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+	path VARCHAR(512) NOT NULL UNIQUE,
+	entityId INT UNSIGNED NOT NULL,
+	created TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+
+	PRIMARY KEY(ducumentId),
+	FOREIGN KEY(entityId) REFERENCES entity(entityId)
+);

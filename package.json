@@ -6,7 +6,8 @@
 	"scripts": {
 		"dev": "nodemon -- --dev",
 		"prod": "node app.js",
-		"killPort": "sudo kill -9 $(sudo lsof -t -i:3000)"
+		"killPort": "sudo kill -9 $(sudo lsof -t -i:3000)",
+		"clearLogs": "rm -r ./logs"
 	},
 	"keywords": [],
 	"author": "Zokki",

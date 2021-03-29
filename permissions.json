@@ -1,9 +1,11 @@
 {
 	"VIEW_FOOD": {
-		"id": 100
+		"id": 100,
+		"isDefault": true
 	},
 	"ADD_FOOD": {
-		"id": 200
+		"id": 200,
+		"isDefault": true
 	},
 	"CHANGE_FOOD": {
 		"id": 300
@@ -12,13 +14,16 @@
 		"id": 400
 	},
 	"EDIT_PASSWORD": {
-		"id": 500
+		"id": 500,
+		"isDefault": true
 	},
 	"EDIT_USERNAME": {
-		"id": 600
+		"id": 600,
+		"isDefault": true
 	},
 	"VIEW_USERS": {
-		"id": 700
+		"id": 700,
+		"isDefault": true
 	},
 	"VIEW_USERS_FAVORITES": {
 		"id": 800
@@ -45,10 +50,12 @@
 		"id": 1500
 	},
 	"VIEW_IMAGES": {
-		"id": 1600
+		"id": 1600,
+		"isDefault": true
 	},
 	"VIEW_VIDEOS": {
-		"id": 1700
+		"id": 1700,
+		"isDefault": true
 	},
 	"DELETE_IMAGES": {
 		"id": 1800
@@ -58,7 +65,8 @@
 	},
 	"ADD_IMAGES": {
 		"id": 15000,
-		"value": 15
+		"value": 15,
+		"isDefault": true
 	},
 	"ADD_VIDEOS": {
 		"id": 15100,

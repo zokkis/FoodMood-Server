@@ -58,7 +58,7 @@ functions.getAllowedProperties = () => ['username', 'password', 'password', 'per
 setInterval(() => {
 	const currentTime = Date.now();
 	cachedUsers
-		.filter(user => currentTime - user.cachedTime < 300000) //5mins
+		.filter(user => currentTime - user.cachedTime > 300000) //5mins
 		.forEach(user => functions.deleteCachedUser(user.username));
 }, 150000);
 
