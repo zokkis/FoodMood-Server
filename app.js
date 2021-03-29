@@ -177,6 +177,10 @@ const checkAuthOf = async (username, password, request, response, next) => {
 function hasPerm(...perms) {
 	return hasPerm[perms] || (hasPerm[perms] = function (request, response, next) {
 		logger.log('Check that', request.user, 'has', perms);
+		if (have.indexOf(perms.ADMIN) !== -1) {
+			return true;
+		}
+
 		if (!request.user?.permissions || !containsAll(request.user.permissions, perms)) {
 			return errorHanlder('No permissions for this action!', response, 403);
 		}
@@ -188,7 +192,7 @@ function hasPerm(...perms) {
 const containsAll = (have, mustHave) => {
 	have = JSON.parse(have).map(perm => perm.id ?? perm);
 	for (const must of mustHave) {
-		if (have.indexOf(must.id) == -1) {
+		if (have.indexOf(must.id) === -1) {
 			return false;
 		}
 	}
