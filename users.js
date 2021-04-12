@@ -53,7 +53,7 @@ functions.prepareUserToSend = (user) => {
 	return user;
 }
 
-functions.getAllowedProperties = () => ['username', 'password', 'password', 'permissions', 'favorites', 'lastEdit'];
+functions.getAllowedProperties = () => ['username', 'password', 'permissions', 'favorites', 'shoppingList'];
 
 setInterval(() => {
 	const currentTime = Date.now();

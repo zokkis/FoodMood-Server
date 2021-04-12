@@ -46,10 +46,10 @@ app.post('/register', (request, response) => {
 
 	bcrypt.hash(request.body.password, 10)
 		.then(salt => {
-			for (const a in request.body) {
-				if (!getAllowedProperties().includes(a)) {
-					logger.warn('To much data in register body!', a)
-					delete request.body[a];
+			for (const key in request.body) {
+				if (!getAllowedProperties().includes(key)) {
+					logger.warn('To much data in register body!', key)
+					delete request.body[key];
 				}
 			}
 			const permissions = getDefaultPermissions();
@@ -127,6 +127,67 @@ app.get('/getfoods', checkAuth, hasPerm(perms.VIEW_FOOD), (request, response) =>
 		.catch(() => errorHanlder('Error while getting foods!', response));
 });
 
+app.post('/addfood', checkAuth, hasPerm(perms.ADD_FOOD), (request, response) => {
+	logger.log('Addfood', request.body);
+	if (!request.body) {
+		return errorHanlder('No food!', response);
+	}
+
+	for (const key in request.body) {
+		if (!getAllowedEntityProperties().includes(key)) {
+			logger.warn('To much data in addFood body!', key)
+			delete request.body[key];
+		}
+	}
+
+	const sqlInsertFood = 'INSERT INTO entity set ?';
+	databaseQuerry(sqlInsertFood, request.body)
+		.then(() => response.sendStatus(200))
+		.then(() => logger.log('Insert success'))
+		.catch((err) => errorHanlder(err, response));
+});
+
+app.put('/changefood', checkAuth, hasPerm(perms.CHANGE_FOOD), (request, response) => {
+	logger.log('Changefood', request.body);
+	if (!request.body) {
+		return errorHanlder('No food!', response);
+	} else if (!request.body.idToChange || Number.isNaN(Number.parseInt(request.body.idToChange))) {
+		return errorHanlder('No id to change!', response);
+	}
+	const idToChange = request.body.idToChange;
+	let sqlChangeFood = 'UPDATE entity SET ';
+	const insetValues = [];
+
+	for (const key in request.body) {
+		if (getAllowedEntityProperties().includes(key)) {
+			sqlChangeFood += key + ' = ?, ';
+			insetValues.push(request.body[key]);
+		} else {
+			logger.warn('To much data in changeFood body!', key)
+			delete request.body[key];
+		}
+	}
+
+	sqlChangeFood = sqlChangeFood.substring(0, sqlChangeFood.length - 2) + ' WHERE entityId = ?';
+	databaseQuerry(sqlChangeFood, [...insetValues, idToChange])
+		.then(() => response.sendStatus(200))
+		.then(() => logger.log('Change success'))
+		.catch((err) => errorHanlder(err, response));
+});
+
+app.put('/deletefood', checkAuth, hasPerm(perms.DELETE_FOOD), (request, response) => {
+	logger.log('Deletefood', request.body);
+	if (!request.body?.idToDelete) {
+		return errorHanlder('No id to delete!', response);
+	}
+	// @FIXME delete documents
+	const sqlDeleteFood = 'DELETE FROM entity WHERE entityId = ?';
+	databaseQuerry(sqlDeleteFood, request.body.idToDelete)
+		.then(() => response.sendStatus(200))
+		.then(() => logger.log('Delete success'))
+		.catch((err) => errorHanlder(err, response));
+});
+
 const errorHanlder = (err, response = undefined, status = 500) => {
 	logger.error(err);
 	if (typeof response?.status === 'function') {
@@ -175,26 +236,27 @@ const checkAuthOf = async (username, password, request, response, next) => {
 }
 
 function hasPerm(...perms) {
-	return hasPerm[perms] || (hasPerm[perms] = function (request, response, next) {
+	return function (request, response, next) {
 		logger.log('Check that', request.user, 'has', perms);
-		if (have.indexOf(perms.ADMIN) !== -1) {
-			return true;
-		}
 
 		if (!request.user?.permissions || !containsAll(request.user.permissions, perms)) {
 			return errorHanlder('No permissions for this action!', response, 403);
 		}
 		logger.log('Permcheck success');
 		next();
-	})
+	}
 }
 
 const containsAll = (have, mustHave) => {
 	have = JSON.parse(have).map(perm => perm.id ?? perm);
+	if (have.indexOf(perms.ADMIN) !== -1) {
+		return true;
+	}
 	for (const must of mustHave) {
 		if (have.indexOf(must.id) === -1) {
 			return false;
 		}
+		logger.log(must);
 	}
 	return true;
 }
@@ -210,3 +272,6 @@ const getDefaultPermissions = () => {
 		return perm.value ? perm : perm.id;
 	});
 }
+
+const getAllowedEntityProperties = () =>
+	['title', 'comment', 'description', 'rating', 'categoryId', 'price', 'brand', 'percentage', 'contentVolume', 'ducumentIds']
