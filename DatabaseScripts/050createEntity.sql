@@ -10,7 +10,6 @@ create table entity (
 	brand TEXT,
 	percentage FLOAT,
 	contentVolume SMALLINT UNSIGNED, #Inhalt
-	ducumentIds JSON,
 	lastEdit TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	
 	PRIMARY KEY(entityId),

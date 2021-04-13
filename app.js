@@ -10,6 +10,7 @@ const { program, Option } = require('commander');
 const { addCachedUser, resetCacheTimeOf, getCachedUsers, prepareUserToSend, deleteCachedUser, getAllowedProperties, updateCachedUser } = require('./users');
 const { databaseQuerry } = require('./database');
 const _ = require('lodash');
+const multer = require('multer');
 
 program
 	.addOption(new Option('-d, --dev', 'run in dev').default(false))
@@ -48,14 +49,14 @@ app.post('/register', (request, response) => {
 		.then(salt => {
 			for (const key in request.body) {
 				if (!getAllowedProperties().includes(key)) {
-					logger.warn('To much data in register body!', key)
+					logger.warn('Too much data in register body!', key)
 					delete request.body[key];
 				}
 			}
 			const permissions = getDefaultPermissions();
 			request.body.permissions = permissions.length ? JSON.stringify(permissions) : undefined;
 
-			const sqlInsertUser = 'INSERT INTO users set ?';
+			const sqlInsertUser = 'INSERT INTO users SET ?';
 			databaseQuerry(sqlInsertUser, { ...request.body, password: salt })
 				.then(() => response.sendStatus(200))
 				.then(() => logger.log('Register success'))
@@ -135,12 +136,12 @@ app.post('/addfood', checkAuth, hasPerm(perms.ADD_FOOD), (request, response) => 
 
 	for (const key in request.body) {
 		if (!getAllowedEntityProperties().includes(key)) {
-			logger.warn('To much data in addFood body!', key)
+			logger.warn('Too much data in addFood body!', key)
 			delete request.body[key];
 		}
 	}
 
-	const sqlInsertFood = 'INSERT INTO entity set ?';
+	const sqlInsertFood = 'INSERT INTO entity SET ?';
 	databaseQuerry(sqlInsertFood, request.body)
 		.then(() => response.sendStatus(200))
 		.then(() => logger.log('Insert success'))
@@ -163,7 +164,7 @@ app.put('/changefood', checkAuth, hasPerm(perms.CHANGE_FOOD), (request, response
 			sqlChangeFood += key + ' = ?, ';
 			insetValues.push(request.body[key]);
 		} else {
-			logger.warn('To much data in changeFood body!', key)
+			logger.warn('Too much data in changeFood body!', key)
 			delete request.body[key];
 		}
 	}
@@ -171,7 +172,7 @@ app.put('/changefood', checkAuth, hasPerm(perms.CHANGE_FOOD), (request, response
 	sqlChangeFood = sqlChangeFood.substring(0, sqlChangeFood.length - 2) + ' WHERE entityId = ?';
 	databaseQuerry(sqlChangeFood, [...insetValues, idToChange])
 		.then(() => response.sendStatus(200))
-		.then(() => logger.log('Change success'))
+		.then(() => logger.log('Changefood success'))
 		.catch((err) => errorHanlder(err, response));
 });
 
@@ -186,6 +187,35 @@ app.put('/deletefood', checkAuth, hasPerm(perms.DELETE_FOOD), (request, response
 		.then(() => response.sendStatus(200))
 		.then(() => logger.log('Delete success'))
 		.catch((err) => errorHanlder(err, response));
+});
+
+if (!fs.existsSync('./images')) {
+	fs.mkdirSync('./images');
+}
+app.post('/addimage', checkAuth, hasPerm(perms.ADD_IMAGES), multer({ dest: 'images/', fileFilter: checkImageAndEntity }).single('entityImage'), async (request, response) => {
+	logger.log('Addimage', request.file);
+	if (request.fileValidateError) {
+		return errorHanlder(request.fileValidateError, response);
+	}
+
+	const sqlCheckEntitiyId = 'SELECT entityId FROM documents WHERE entityId = ?';
+	databaseQuerry(sqlCheckEntitiyId, request.body.entityId)
+		.then(data => {
+			if (data.length >= JSON.parse(request.user.permissions).find(perm => perm.id === perms.ADD_IMAGES.id).value) {
+				throw Error('Too much images on this entity!');
+			}
+		})
+		.then(() => renameImage(request.file, request.body.entityId))
+		.then(name => {
+			const sqlCreateDocument = 'INSERT INTO documents SET ?';
+			databaseQuerry(sqlCreateDocument, { name, entityId: request.body.entityId })
+		})
+		.then(() => response.sendStatus(200))
+		.then(() => logger.log('Addimage success'))
+		.catch(err => {
+			fs.rm(request.file.path, () => { });
+			errorHanlder(err, response);
+		});
 });
 
 const errorHanlder = (err, response = undefined, status = 500) => {
@@ -256,7 +286,6 @@ const containsAll = (have, mustHave) => {
 		if (have.indexOf(must.id) === -1) {
 			return false;
 		}
-		logger.log(must);
 	}
 	return true;
 }
@@ -274,4 +303,46 @@ const getDefaultPermissions = () => {
 }
 
 const getAllowedEntityProperties = () =>
-	['title', 'comment', 'description', 'rating', 'categoryId', 'price', 'brand', 'percentage', 'contentVolume', 'ducumentIds']
+	['title', 'comment', 'description', 'rating', 'categoryId', 'price', 'brand', 'percentage', 'contentVolume', 'documentIds'];
+
+const renameImage = (image, entityId) => {
+	return new Promise((resolve, reject) => {
+		fs.stat(`images/${entityId}`, async (err, stat) => {
+			if (err && err.errno !== -2) {
+				return reject(['Error while check status for ' + entityId, err]);
+			}
+
+			if (!stat) {
+				logger.warn('Create documentDir for', entityId);
+				await fs.mkdir(`images/${entityId}`, { recursive: true }, err => {
+					if (err) {
+						return reject(['Error while create dir for', entityId, err]);
+					}
+				});
+			}
+			const path = `images/${entityId}/${image.filename}${image.originalname.substring(image.originalname.lastIndexOf('.'))}`;
+			fs.rename('images/' + image.filename, path, (err) => {
+				if (err) {
+					return reject(['Error while rename file for', entityId, err]);
+				}
+				image.path = path;
+				resolve(image.filename);
+			});
+		});
+	});
+}
+
+async function checkImageAndEntity(request, file, callback) {
+	if (!file) {
+		request.fileValidateError = 'No image to save!';
+		return callback(null, false);
+	} else if (!request.body?.entityId) {
+		request.fileValidateError = 'No entityId to save!';
+		return callback(null, false);
+	} else if ((await databaseQuerry('SELECT entityId FROM entity WHERE entityId = ?', request.body.entityId)).length === 0) {
+		request.fileValidateError = 'No entity for this id!';
+		return callback(null, false);
+	}
+
+	return callback(null, true);
+}
