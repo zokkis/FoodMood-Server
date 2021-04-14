@@ -3,7 +3,7 @@ const _ = require('lodash');
 
 const logger = new Logger('Users');
 
-functions = {};
+const functions = {};
 
 const cachedUsers = [];
 
@@ -13,7 +13,7 @@ functions.addCachedUser = (user) => {
 	}
 	functions.resetCacheTimeOf(user);
 	cachedUsers.push(user);
-}
+};
 
 functions.deleteCachedUser = (username) => {
 	if (!username) {
@@ -24,7 +24,7 @@ functions.deleteCachedUser = (username) => {
 		return logger.error('No user found for', username);
 	}
 	cachedUsers.splice(index, 1);
-}
+};
 
 functions.updateCachedUser = (oldUsername, newUser) => {
 	if (!oldUsername || !newUser) {
@@ -32,14 +32,14 @@ functions.updateCachedUser = (oldUsername, newUser) => {
 	}
 	functions.deleteCachedUser(oldUsername);
 	functions.addCachedUser(newUser);
-}
+};
 
 functions.resetCacheTimeOf = (user) => {
 	if (!user) {
 		return logger.error('resetCacheTimeOf - no user', user);
 	}
 	user.cachedTime = Date.now();
-}
+};
 
 functions.getCachedUsers = () => cachedUsers;
 
@@ -51,7 +51,7 @@ functions.prepareUserToSend = (user) => {
 	delete user.password;
 	delete user.cachedTime;
 	return user;
-}
+};
 
 functions.getAllowedProperties = () => ['username', 'password', 'permissions', 'favorites', 'shoppingList'];
 

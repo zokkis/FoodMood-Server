@@ -11,7 +11,6 @@ const { addCachedUser, resetCacheTimeOf, getCachedUsers, prepareUserToSend, dele
 const { databaseQuerry } = require('./database');
 const _ = require('lodash');
 const multer = require('multer');
-const { request, response } = require('express');
 
 program
 	.addOption(new Option('-d, --dev', 'run in dev').default(false))
@@ -50,7 +49,7 @@ app.post('/register', (request, response) => {
 		.then(salt => {
 			for (const key in request.body) {
 				if (!getAllowedProperties().includes(key)) {
-					logger.warn('Too much data in register body!', key)
+					logger.warn('Too much data in register body!', key);
 					delete request.body[key];
 				}
 			}
@@ -107,7 +106,7 @@ app.put('/changeusername', checkAuth, hasPerm(perms.EDIT_USERNAME), (request, re
 
 	const sqlChangeUsername = 'UPDATE users SET username = ? WHERE username = ?';
 	databaseQuerry(sqlChangeUsername, [request.body.newUsername, request.user.username])
-		.then(() => updateCachedUser(request.user.username, { ...request.user, username: newUsername }))
+		.then(() => updateCachedUser(request.user.username, { ...request.user, username: request.body.newUsername }))
 		.then(() => response.sendStatus(200))
 		.then(() => logger.log('Change success'))
 		.catch(() => errorHanlder('Error while changing username!', response));
@@ -137,7 +136,7 @@ app.post('/addfood', checkAuth, hasPerm(perms.ADD_FOOD), (request, response) => 
 
 	for (const key in request.body) {
 		if (!getAllowedEntityProperties().includes(key)) {
-			logger.warn('Too much data in addFood body!', key)
+			logger.warn('Too much data in addFood body!', key);
 			delete request.body[key];
 		}
 	}
@@ -165,7 +164,7 @@ app.put('/changefood', checkAuth, hasPerm(perms.CHANGE_FOOD), (request, response
 			sqlChangeFood += key + ' = ?, ';
 			insetValues.push(request.body[key]);
 		} else {
-			logger.warn('Too much data in changeFood body!', key)
+			logger.warn('Too much data in changeFood body!', key);
 			delete request.body[key];
 		}
 	}
@@ -235,7 +234,7 @@ app.post('/addimage',
 			})
 			.then(() => {
 				const sqlCreateDocument = 'INSERT INTO documents SET ?';
-				databaseQuerry(sqlCreateDocument, { name: request.file.filename, entityId: request.body.entityId })
+				databaseQuerry(sqlCreateDocument, { name: request.file.filename, entityId: request.body.entityId });
 			})
 			.then(() => response.sendStatus(200))
 			.then(() => logger.log('Addimage success'))
@@ -271,14 +270,15 @@ const errorHanlder = (err, response = undefined, status = 500) => {
 	if (typeof response?.status === 'function') {
 		response.status(status).send(err);
 	}
-}
+};
 
 function checkAuth(request, response, next) {
 	logger.log('Check Auth of', request.headers.authorization);
 	if (!request.headers.authorization) {
 		return errorHanlder('Authentication required!', response, 400);
 	}
-	const b64auth = request.headers.authorization.split(' ')[1]
+	const b64auth = request.headers.authorization.split(' ')[1];
+	// eslint-disable-next-line
 	const [username, password] = Buffer.from(b64auth, 'base64').toString().split(':')
 	if (!username || !password) {
 		return errorHanlder('Username or password is missing!', response, 400);
@@ -311,7 +311,7 @@ const checkAuthOf = async (username, password, request, response, next) => {
 			next();
 		})
 		.catch(err => errorHanlder(err, response));
-}
+};
 
 function hasPerm(...perms) {
 	return function (request, response, next) {
@@ -322,7 +322,7 @@ function hasPerm(...perms) {
 		}
 		logger.log('Permcheck success');
 		next();
-	}
+	};
 }
 
 const containsAll = (have, mustHave) => {
@@ -336,7 +336,7 @@ const containsAll = (have, mustHave) => {
 		}
 	}
 	return true;
-}
+};
 
 const getDefaultPermissions = () => {
 	const retPerms = [];
@@ -348,7 +348,7 @@ const getDefaultPermissions = () => {
 		delete perm.isDefault;
 		return perm.value ? perm : perm.id;
 	});
-}
+};
 
 const getAllowedEntityProperties = () =>
 	['title', 'comment', 'description', 'rating', 'categoryId', 'price', 'brand', 'percentage', 'contentVolume', 'documentIds'];
@@ -371,9 +371,9 @@ function checkFileAndMimetype(mimetype) {
 
 		request.file = file;
 		return callback(null, true);
-	}
+	};
 }
 
 const deletePath = path => {
 	fs.rm(path, { recursive: true, force: true }, err => err ? logger.log(err) : null);
-}
+};
