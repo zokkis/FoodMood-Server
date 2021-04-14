@@ -11,6 +11,7 @@ const { addCachedUser, resetCacheTimeOf, getCachedUsers, prepareUserToSend, dele
 const { databaseQuerry } = require('./database');
 const _ = require('lodash');
 const multer = require('multer');
+const { request, response } = require('express');
 
 program
 	.addOption(new Option('-d, --dev', 'run in dev').default(false))
@@ -181,9 +182,10 @@ app.put('/deletefood', checkAuth, hasPerm(perms.DELETE_FOOD), (request, response
 	if (!request.body?.idToDelete) {
 		return errorHanlder('No id to delete!', response);
 	}
-	// @FIXME delete documents
+
 	const sqlDeleteFood = 'DELETE FROM entity WHERE entityId = ?';
 	databaseQuerry(sqlDeleteFood, request.body.idToDelete)
+		.then(() => deletePath(`./images/${request.body.idToDelete}/`))
 		.then(() => response.sendStatus(200))
 		.then(() => logger.log('Delete success'))
 		.catch((err) => errorHanlder(err, response));
@@ -192,30 +194,76 @@ app.put('/deletefood', checkAuth, hasPerm(perms.DELETE_FOOD), (request, response
 if (!fs.existsSync('./images')) {
 	fs.mkdirSync('./images');
 }
-app.post('/addimage', checkAuth, hasPerm(perms.ADD_IMAGES), multer({ dest: 'images/', fileFilter: checkImageAndEntity }).single('entityImage'), async (request, response) => {
-	logger.log('Addimage', request.file);
-	if (request.fileValidateError) {
-		return errorHanlder(request.fileValidateError, response);
+const imageStorage = multer.diskStorage({
+	destination: function (request, file, cb) {
+		const imageFolder = './images/' + request.body.entityId;
+		if (!fs.existsSync(imageFolder)) {
+			fs.mkdirSync(imageFolder);
+		}
+		request.file.folder = imageFolder;
+		cb(null, imageFolder);
+	},
+	filename: function (request, file, cb) {
+		const filename = `${file.fieldname}_${Date.now()}_${Math.round(Math.random() * 1E9)}${file.originalname.substring(file.originalname.lastIndexOf('.'))}`;
+		request.file.filename = filename;
+		request.file.path = request.file.folder + '/' + filename;
+		cb(null, filename);
 	}
+});
+app.post('/addimage',
+	checkAuth,
+	hasPerm(perms.ADD_IMAGES),
+	multer({ dest: 'images/', fileFilter: checkFileAndMimetype('image'), storage: imageStorage }).any(),
+	(request, response) => {
+		logger.log('Addimage', request.file);
+		if (request.files?.length > 1) {
+			request.files?.forEach(file => deletePath(file.path));
+			return errorHanlder('Only one image!', response);
+		} else if (request.fileValidateError) {
+			request.files?.forEach(file => deletePath(file.path));
+			return errorHanlder(request.fileValidateError, response);
+		} else if (!request.file) {
+			return errorHanlder('No image to save!', response);
+		}
 
-	const sqlCheckEntitiyId = 'SELECT entityId FROM documents WHERE entityId = ?';
-	databaseQuerry(sqlCheckEntitiyId, request.body.entityId)
-		.then(data => {
-			if (data.length >= JSON.parse(request.user.permissions).find(perm => perm.id === perms.ADD_IMAGES.id).value) {
-				throw Error('Too much images on this entity!');
-			}
+		const sqlCheckEntitiyId = 'SELECT entityId FROM documents WHERE entityId = ?';
+		databaseQuerry(sqlCheckEntitiyId, request.body.entityId)
+			.then(data => {
+				if (data.length >= JSON.parse(request.user.permissions).find(perm => perm.id === perms.ADD_IMAGES.id).value) {
+					throw Error('Too much images on this entity!');
+				}
+			})
+			.then(() => {
+				const sqlCreateDocument = 'INSERT INTO documents SET ?';
+				databaseQuerry(sqlCreateDocument, { name: request.file.filename, entityId: request.body.entityId })
+			})
+			.then(() => response.sendStatus(200))
+			.then(() => logger.log('Addimage success'))
+			.catch(err => {
+				fs.rm(request.file.path, () => { });
+				errorHanlder(err.message, response);
+			});
+	}
+);
+
+app.put('/deleteimage', checkAuth, hasPerm(perms.DELETE_IMAGES), (request, response) => {
+	logger.log('Deleteimage', request.body?.documentId);
+	if (!request.body?.documentId) {
+		return errorHanlder('No id to delete!', response);
+	}
+	let pathToDelete;
+
+	const sqlGetDocumentName = 'SELECT name, entityId FROM documents WHERE documentId = ?';
+	databaseQuerry(sqlGetDocumentName, request.body.documentId)
+		.then(data => pathToDelete = `./images/${data[0].entityId}/${data[0].name}`)
+		.then(() => {
+			const sqlDeleteDocument = 'DELETE FROM documents WHERE documentId = ?';
+			databaseQuerry(sqlDeleteDocument, request.body.documentId);
 		})
-		.then(() => renameImage(request.file, request.body.entityId))
-		.then(name => {
-			const sqlCreateDocument = 'INSERT INTO documents SET ?';
-			databaseQuerry(sqlCreateDocument, { name, entityId: request.body.entityId })
-		})
+		.then(() => deletePath(pathToDelete))
 		.then(() => response.sendStatus(200))
-		.then(() => logger.log('Addimage success'))
-		.catch(err => {
-			fs.rm(request.file.path, () => { });
-			errorHanlder(err, response);
-		});
+		.then(() => logger.log('Document deleted!'))
+		.catch(() => errorHanlder('No entity for this id!', response));
 });
 
 const errorHanlder = (err, response = undefined, status = 500) => {
@@ -305,44 +353,27 @@ const getDefaultPermissions = () => {
 const getAllowedEntityProperties = () =>
 	['title', 'comment', 'description', 'rating', 'categoryId', 'price', 'brand', 'percentage', 'contentVolume', 'documentIds'];
 
-const renameImage = (image, entityId) => {
-	return new Promise((resolve, reject) => {
-		fs.stat(`images/${entityId}`, async (err, stat) => {
-			if (err && err.errno !== -2) {
-				return reject(['Error while check status for ' + entityId, err]);
-			}
+function checkFileAndMimetype(mimetype) {
+	return async function (request, file, callback) {
+		if (request.fileValidateError) {
+			request.fileValidateError = 'Only one image!';
+			return callback(null, false);
+		} else if (!file.mimetype.includes(mimetype)) {
+			request.fileValidateError = `Must be ${mimetype}!`;
+			return callback(null, false);
+		} else if (!request.body?.entityId) {
+			request.fileValidateError = 'No entityId to save!';
+			return callback(null, false);
+		} else if ((await databaseQuerry('SELECT entityId FROM entity WHERE entityId = ?', request.body.entityId)).length === 0) {
+			request.fileValidateError = 'No entity for this id!';
+			return callback(null, false);
+		}
 
-			if (!stat) {
-				logger.warn('Create documentDir for', entityId);
-				await fs.mkdir(`images/${entityId}`, { recursive: true }, err => {
-					if (err) {
-						return reject(['Error while create dir for', entityId, err]);
-					}
-				});
-			}
-			const path = `images/${entityId}/${image.filename}${image.originalname.substring(image.originalname.lastIndexOf('.'))}`;
-			fs.rename('images/' + image.filename, path, (err) => {
-				if (err) {
-					return reject(['Error while rename file for', entityId, err]);
-				}
-				image.path = path;
-				resolve(image.filename);
-			});
-		});
-	});
+		request.file = file;
+		return callback(null, true);
+	}
 }
 
-async function checkImageAndEntity(request, file, callback) {
-	if (!file) {
-		request.fileValidateError = 'No image to save!';
-		return callback(null, false);
-	} else if (!request.body?.entityId) {
-		request.fileValidateError = 'No entityId to save!';
-		return callback(null, false);
-	} else if ((await databaseQuerry('SELECT entityId FROM entity WHERE entityId = ?', request.body.entityId)).length === 0) {
-		request.fileValidateError = 'No entity for this id!';
-		return callback(null, false);
-	}
-
-	return callback(null, true);
+const deletePath = path => {
+	fs.rm(path, { recursive: true, force: true }, err => err ? logger.log(err) : null);
 }

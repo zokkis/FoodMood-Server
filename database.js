@@ -13,8 +13,8 @@ db.connect(err => {
 });
 
 functions.databaseQuerry = (sql, data = undefined) => {
-	return new Promise((solve, reject) =>
-		db.query(sql, data, (err, result) => err ? reject(err) : solve(result)))
+	return new Promise((resolve, reject) =>
+		db.query(sql, data, (err, result) => err ? reject(err) : resolve(result)))
 }
 
 module.exports = functions;
