@@ -22,6 +22,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(checkAuth);
 
 https.createServer({
 	key: fs.readFileSync('./private_files/private.pem'),
@@ -53,8 +54,7 @@ app.post('/register', (request, response) => {
 					delete request.body[key];
 				}
 			}
-			const permissions = getDefaultPermissions();
-			request.body.permissions = permissions.length ? JSON.stringify(permissions) : undefined;
+			request.body.permissions = JSON.stringify({ isDefault: true });
 
 			const sqlInsertUser = 'INSERT INTO users SET ?';
 			databaseQuerry(sqlInsertUser, { ...request.body, password: salt })
@@ -65,12 +65,12 @@ app.post('/register', (request, response) => {
 		.catch(() => errorHanlder('Error while creating salt!', response));
 });
 
-app.get('/login', checkAuth, (request, response) => {
+app.get('/login', (request, response) => {
 	logger.log('Login', request.user);
 	response.status(200).send(request.user);
 });
 
-app.delete('/deleteuser', checkAuth, (request, response) => {
+app.delete('/deleteuser', (request, response) => {
 	logger.log('Delete User', request.user);
 	const sqlDeleteUser = 'DELETE FROM users WHERE username = ?';
 	databaseQuerry(sqlDeleteUser, request.user.username)
@@ -80,7 +80,7 @@ app.delete('/deleteuser', checkAuth, (request, response) => {
 		.catch(() => errorHanlder('Error! While deleting!', response));
 });
 
-app.put('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, response) => {
+app.put('/changepassword', hasPerm(perms.EDIT_PASSWORD), (request, response) => {
 	logger.log('Changepassword', request.user);
 	if (!request.body?.newPassword) {
 		return errorHanlder('Empty newPassword!', response);
@@ -98,7 +98,7 @@ app.put('/changepassword', checkAuth, hasPerm(perms.EDIT_PASSWORD), (request, re
 		.catch(() => errorHanlder('Error while creating salt!', response));
 });
 
-app.put('/changeusername', checkAuth, hasPerm(perms.EDIT_USERNAME), (request, response) => {
+app.put('/changeusername', hasPerm(perms.EDIT_USERNAME), (request, response) => {
 	logger.log('Changeusername', request.user, request.body?.newUsername);
 	if (!request.body?.newUsername) {
 		return errorHanlder('Empty new username!', response);
@@ -112,23 +112,32 @@ app.put('/changeusername', checkAuth, hasPerm(perms.EDIT_USERNAME), (request, re
 		.catch(() => errorHanlder('Error while changing username!', response));
 });
 
-app.delete('/logout', checkAuth, (request, response) => {
+app.delete('/logout', (request, response) => {
 	logger.log('Logout', request.user.username);
 	deleteCachedUser(request.user.username);
 	response.sendStatus(200);
 });
 
-app.get('/getfoods', checkAuth, hasPerm(perms.VIEW_FOOD), (request, response) => {
+app.get('/getfoods', hasPerm(perms.VIEW_FOOD), (request, response) => {
 	logger.log('Getfoods', request.user);
 
 	const sqlGetFoods = 'SELECT * FROM entity';
 	databaseQuerry(sqlGetFoods, [])
-		.then(data => response.status(200).send(data))
+		.then(data => {
+			data.forEach(obj => {
+				for (var propName in obj) {
+					if (!obj[propName]) {
+						delete obj[propName];
+					}
+				}
+			});
+			response.status(200).send(data);
+		})
 		.then(() => logger.log('Change success'))
 		.catch(() => errorHanlder('Error while getting foods!', response));
 });
 
-app.post('/addfood', checkAuth, hasPerm(perms.ADD_FOOD), (request, response) => {
+app.post('/addfood', hasPerm(perms.ADD_FOOD), (request, response) => {
 	logger.log('Addfood', request.body);
 	if (!request.body) {
 		return errorHanlder('No food!', response);
@@ -148,7 +157,7 @@ app.post('/addfood', checkAuth, hasPerm(perms.ADD_FOOD), (request, response) => 
 		.catch((err) => errorHanlder(err, response));
 });
 
-app.put('/changefood', checkAuth, hasPerm(perms.CHANGE_FOOD), (request, response) => {
+app.put('/changefood', hasPerm(perms.CHANGE_FOOD), (request, response) => {
 	logger.log('Changefood', request.body);
 	if (!request.body) {
 		return errorHanlder('No food!', response);
@@ -176,7 +185,7 @@ app.put('/changefood', checkAuth, hasPerm(perms.CHANGE_FOOD), (request, response
 		.catch((err) => errorHanlder(err, response));
 });
 
-app.put('/deletefood', checkAuth, hasPerm(perms.DELETE_FOOD), (request, response) => {
+app.put('/deletefood', hasPerm(perms.DELETE_FOOD), (request, response) => {
 	logger.log('Deletefood', request.body);
 	if (!request.body?.idToDelete) {
 		return errorHanlder('No id to delete!', response);
@@ -184,18 +193,18 @@ app.put('/deletefood', checkAuth, hasPerm(perms.DELETE_FOOD), (request, response
 
 	const sqlDeleteFood = 'DELETE FROM entity WHERE entityId = ?';
 	databaseQuerry(sqlDeleteFood, request.body.idToDelete)
-		.then(() => deletePath(`./images/${request.body.idToDelete}/`))
+		.then(() => deletePath(`./documents/${request.body.idToDelete}/`))
 		.then(() => response.sendStatus(200))
 		.then(() => logger.log('Delete success'))
 		.catch((err) => errorHanlder(err, response));
 });
 
-if (!fs.existsSync('./images')) {
-	fs.mkdirSync('./images');
+if (!fs.existsSync('./documents')) {
+	fs.mkdirSync('./documents');
 }
-const imageStorage = multer.diskStorage({
+const multerStorage = multer.diskStorage({
 	destination: function (request, file, cb) {
-		const imageFolder = './images/' + request.body.entityId;
+		const imageFolder = './documents/' + request.body.entityId;
 		if (!fs.existsSync(imageFolder)) {
 			fs.mkdirSync(imageFolder);
 		}
@@ -212,41 +221,123 @@ const imageStorage = multer.diskStorage({
 app.post('/addimage',
 	checkAuth,
 	hasPerm(perms.ADD_IMAGES),
-	multer({ dest: 'images/', fileFilter: checkFileAndMimetype('image'), storage: imageStorage }).any(),
-	(request, response) => {
-		logger.log('Addimage', request.file);
-		if (request.files?.length > 1) {
-			request.files?.forEach(file => deletePath(file.path));
-			return errorHanlder('Only one image!', response);
-		} else if (request.fileValidateError) {
-			request.files?.forEach(file => deletePath(file.path));
-			return errorHanlder(request.fileValidateError, response);
-		} else if (!request.file) {
-			return errorHanlder('No image to save!', response);
-		}
-
-		const sqlCheckEntitiyId = 'SELECT entityId FROM documents WHERE entityId = ?';
-		databaseQuerry(sqlCheckEntitiyId, request.body.entityId)
-			.then(data => {
-				if (data.length >= JSON.parse(request.user.permissions).find(perm => perm.id === perms.ADD_IMAGES.id).value) {
-					throw Error('Too much images on this entity!');
-				}
-			})
-			.then(() => {
-				const sqlCreateDocument = 'INSERT INTO documents SET ?';
-				databaseQuerry(sqlCreateDocument, { name: request.file.filename, entityId: request.body.entityId });
-			})
-			.then(() => response.sendStatus(200))
-			.then(() => logger.log('Addimage success'))
-			.catch(err => {
-				fs.rm(request.file.path, () => { });
-				errorHanlder(err.message, response);
-			});
-	}
+	multer({ dest: 'documents/', fileFilter: checkFileAndMimetype('image'), storage: multerStorage }).any(),
+	addDocument
 );
 
-app.put('/deleteimage', checkAuth, hasPerm(perms.DELETE_IMAGES), (request, response) => {
-	logger.log('Deleteimage', request.body?.documentId);
+app.put('/deleteimage', hasPerm(perms.DELETE_IMAGES), deleteDocument);
+
+app.post('/addvideo',
+	hasPerm(perms.ADD_VIDEOS),
+	multer({ dest: 'documents/', fileFilter: checkFileAndMimetype('video'), storage: multerStorage }).any(),
+	addDocument
+);
+
+app.put('/deletevideo', hasPerm(perms.DELETE_VIDEOS), deleteDocument);
+
+app.post('/addcategory', hasPerm(perms.CREATE_CATEGORY), (request, response) => {
+	logger.log('Addcategory', request.body);
+	if (!request.body) {
+		return errorHanlder('No category to add!', response);
+	}
+
+	for (const key in request.body) {
+		if (!['parentCategoryId', 'title'].includes(key)) {
+			logger.warn('Too much data in addcategory body!', key);
+			delete request.body[key];
+		}
+	}
+
+	const sqlToAdd = 'INSERT INTO categories SET ?';
+	databaseQuerry(sqlToAdd, { ...request.body })
+		.then(() => response.sendStatus(200))
+		.then(() => logger.log('Addcategory success!'))
+		.catch((err) => errorHanlder(err, response));
+});
+
+app.put('/deletecategory', async (request, response) => {
+	logger.log('Deletecategory', request.body);
+	const categoryId = request.body?.categoryId;
+	if (!categoryId) {
+		return errorHanlder('No id to delete!', response);
+	}
+
+	const permsToCheck = JSON.parse(request.user.permissions).isDefault ? getDefaultPermissions() : JSON.parse(request.user.permissions);
+	const canDeletMain = permsToCheck.includes(perms.DELETE_CATEGORY_MAIN);
+	const canDeletWith = permsToCheck.includes(perms.DELETE_CATEGORY_WITH_CHILD);
+	const canDeleteLast = permsToCheck.includes(perms.DELETE_CATEGORY_LAST_CHILD);
+
+	if (!canDeletMain && !canDeleteLast && !canDeletWith) {
+		return errorHanlder('No permissions to delete!', response);
+	}
+
+	const sqlGetCategory = 'SELECT parentCategoryId FROM categories WHERE categoryId = ?';
+	databaseQuerry(sqlGetCategory, categoryId)
+		.then(data => {
+			if (category.length !== 1) {
+				throw Error(category.length === 0 ? 'No category for this id!' : 'Internal error with this id!');
+			}
+			return data[0];
+		})
+		.then(category => {
+			// Main-category
+			if (category.parentCategoryId === null || category.parentCategoryId === categoryId) {
+				if (!canDeletMain) {
+					throw Error('No permissions to delete main-category!');
+				}
+				// Check for childs
+				// check perms with -> error
+				// -> set every childs parentid to null
+				// delete or error
+			}
+			// With childs - like in main
+			// check perms with -> error
+			// -> set every childs parentid to null
+			// delete or error
+
+			// last child - like above
+			// check perms last -> error
+			// delete or error
+		})
+		.catch(err => errorHanlder(err, response));
+});
+
+function addDocument(request, response) {
+	const type = request.file?.type ?? 'document';
+	logger.log(`Add${type}`, request.file);
+	if (request.files?.length > 1) {
+		request.files?.forEach(file => deletePath(file.path));
+		return errorHanlder(`Only one ${type}!`, response);
+	} else if (request.fileValidateError) {
+		request.files?.forEach(file => deletePath(file.path));
+		return errorHanlder(request.fileValidateError, response);
+	} else if (!request.file) {
+		return errorHanlder(`No ${type} to save!`, response);
+	} else if (type === 'document') {
+		return errorHanlder('Type cant be documente!', response);
+	}
+
+	const sqlCheckEntitiyId = 'SELECT entityId FROM documents WHERE entityId = ? AND type = ?';
+	databaseQuerry(sqlCheckEntitiyId, [request.body.entityId, type])
+		.then(data => {
+			if (data.length >= JSON.parse(request.user.permissions).find(perm => perm.id === perms[`ADD_${type.toUpperCase()}S`].id).value) {
+				throw Error(`Too much ${type}s on this entity!`);
+			}
+		})
+		.then(() => {
+			const sqlCreateDocument = 'INSERT INTO documents SET ?';
+			databaseQuerry(sqlCreateDocument, { type, name: request.file.filename, entityId: request.body.entityId });
+		})
+		.then(() => response.sendStatus(200))
+		.then(() => logger.log(`Add${type} success`))
+		.catch(err => {
+			fs.rm(request.file.path, () => { });
+			errorHanlder(err.message, response);
+		});
+}
+
+function deleteDocument(request, response) {
+	logger.log('Deletedocument', request.body?.documentId);
 	if (!request.body?.documentId) {
 		return errorHanlder('No id to delete!', response);
 	}
@@ -254,7 +345,7 @@ app.put('/deleteimage', checkAuth, hasPerm(perms.DELETE_IMAGES), (request, respo
 
 	const sqlGetDocumentName = 'SELECT name, entityId FROM documents WHERE documentId = ?';
 	databaseQuerry(sqlGetDocumentName, request.body.documentId)
-		.then(data => pathToDelete = `./images/${data[0].entityId}/${data[0].name}`)
+		.then(data => pathToDelete = `./documents/${data[0].entityId}/${data[0].name}`)
 		.then(() => {
 			const sqlDeleteDocument = 'DELETE FROM documents WHERE documentId = ?';
 			databaseQuerry(sqlDeleteDocument, request.body.documentId);
@@ -263,7 +354,7 @@ app.put('/deleteimage', checkAuth, hasPerm(perms.DELETE_IMAGES), (request, respo
 		.then(() => response.sendStatus(200))
 		.then(() => logger.log('Document deleted!'))
 		.catch(() => errorHanlder('No entity for this id!', response));
-});
+}
 
 const errorHanlder = (err, response = undefined, status = 500) => {
 	logger.error(err);
@@ -273,13 +364,18 @@ const errorHanlder = (err, response = undefined, status = 500) => {
 };
 
 function checkAuth(request, response, next) {
+	if (['/', '/info', '/register'].includes(request.url)) {
+		return next();
+	}
+
 	logger.log('Check Auth of', request.headers.authorization);
 	if (!request.headers.authorization) {
 		return errorHanlder('Authentication required!', response, 400);
 	}
+
 	const b64auth = request.headers.authorization.split(' ')[1];
 	// eslint-disable-next-line
-	const [username, password] = Buffer.from(b64auth, 'base64').toString().split(':')
+	const [username, password] = Buffer.from(b64auth, 'base64').toString().split(':');
 	if (!username || !password) {
 		return errorHanlder('Username or password is missing!', response, 400);
 	}
@@ -317,7 +413,8 @@ function hasPerm(...perms) {
 	return function (request, response, next) {
 		logger.log('Check that', request.user, 'has', perms);
 
-		if (!request.user?.permissions || !containsAll(request.user.permissions, perms)) {
+		const permsToCheck = JSON.parse(request.user.permissions).isDefault ? getDefaultPermissions() : JSON.parse(request.user.permissions);
+		if (!request.user?.permissions || !containsAll(permsToCheck, perms)) {
 			return errorHanlder('No permissions for this action!', response, 403);
 		}
 		logger.log('Permcheck success');
@@ -326,7 +423,7 @@ function hasPerm(...perms) {
 }
 
 const containsAll = (have, mustHave) => {
-	have = JSON.parse(have).map(perm => perm.id ?? perm);
+	have = have.map(perm => perm.id ?? perm);
 	if (have.indexOf(perms.ADMIN) !== -1) {
 		return true;
 	}
@@ -356,7 +453,7 @@ const getAllowedEntityProperties = () =>
 function checkFileAndMimetype(mimetype) {
 	return async function (request, file, callback) {
 		if (request.fileValidateError) {
-			request.fileValidateError = 'Only one image!';
+			request.fileValidateError = `Only one ${mimetype}!`;
 			return callback(null, false);
 		} else if (!file.mimetype.includes(mimetype)) {
 			request.fileValidateError = `Must be ${mimetype}!`;
@@ -368,6 +465,7 @@ function checkFileAndMimetype(mimetype) {
 			request.fileValidateError = 'No entity for this id!';
 			return callback(null, false);
 		}
+		file.type = mimetype;
 
 		request.file = file;
 		return callback(null, true);
