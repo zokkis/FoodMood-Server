@@ -242,7 +242,7 @@ app.post('/addcategory', hasPerm(perms.CREATE_CATEGORY), (request, response) => 
 	}
 
 	for (const key in request.body) {
-		if (!['parentCategoryId', 'title'].includes(key)) {
+		if (!getAllowedCategoryProperties().includes(key)) {
 			logger.warn('Too much data in addcategory body!', key);
 			delete request.body[key];
 		}
@@ -251,7 +251,7 @@ app.post('/addcategory', hasPerm(perms.CREATE_CATEGORY), (request, response) => 
 	const sqlToAdd = 'INSERT INTO categories SET ?';
 	databaseQuerry(sqlToAdd, { ...request.body })
 		.then(() => response.sendStatus(200))
-		.then(() => logger.log('Addcategory success!'))
+		.then(() => logger.log('Addcategory success'))
 		.catch((err) => errorHanlder(err, response));
 });
 
@@ -262,44 +262,86 @@ app.put('/deletecategory', async (request, response) => {
 		return errorHanlder('No id to delete!', response);
 	}
 
-	const permsToCheck = JSON.parse(request.user.permissions).isDefault ? getDefaultPermissions() : JSON.parse(request.user.permissions);
-	const canDeletMain = permsToCheck.includes(perms.DELETE_CATEGORY_MAIN);
-	const canDeletWith = permsToCheck.includes(perms.DELETE_CATEGORY_WITH_CHILD);
-	const canDeleteLast = permsToCheck.includes(perms.DELETE_CATEGORY_LAST_CHILD);
+	const sqlCheckCategoriesOfFoods = 'SELECT categoryId FROM entity WHERE categoryId = ?';
+	if ((await databaseQuerry(sqlCheckCategoriesOfFoods, categoryId)).length !== 0) {
+		return errorHanlder('There is a food with this id! -> refactor this!', response);
+	}
 
-	if (!canDeletMain && !canDeleteLast && !canDeletWith) {
+	const permsToCheck = JSON.parse(request.user.permissions).isDefault ? getDefaultPermissions() : JSON.parse(request.user.permissions);
+	const canDeleteMain = containsOnePerm(permsToCheck, perms.DELETE_CATEGORY_MAIN);
+	const canDeleteWith = containsOnePerm(permsToCheck, perms.DELETE_CATEGORY_WITH_CHILD);
+	const canDeleteLast = containsOnePerm(permsToCheck, perms.DELETE_CATEGORY_LAST_CHILD);
+
+	if (!canDeleteMain && !canDeleteLast && !canDeleteWith) {
 		return errorHanlder('No permissions to delete!', response);
 	}
+
+	let isMain = false;
+	let parentId;
 
 	const sqlGetCategory = 'SELECT parentCategoryId FROM categories WHERE categoryId = ?';
 	databaseQuerry(sqlGetCategory, categoryId)
 		.then(data => {
-			if (category.length !== 1) {
-				throw Error(category.length === 0 ? 'No category for this id!' : 'Internal error with this id!');
+			if (data.length !== 1) {
+				throw new Error(data.length === 0 ? 'No category for this id!' : 'Internal error with this id!');
 			}
-			return data[0];
+			parentId = data[0].parentCategoryId;
 		})
-		.then(category => {
-			// Main-category
-			if (category.parentCategoryId === null || category.parentCategoryId === categoryId) {
-				if (!canDeletMain) {
-					throw Error('No permissions to delete main-category!');
+		.then(() => {
+			if (parentId === null || parentId === categoryId) {
+				if (!canDeleteMain) {
+					throw new Error('No permissions to delete main-category!');
 				}
-				// Check for childs
-				// check perms with -> error
-				// -> set every childs parentid to null
-				// delete or error
+				this.isMain = true;
 			}
-			// With childs - like in main
-			// check perms with -> error
-			// -> set every childs parentid to null
-			// delete or error
-
-			// last child - like above
-			// check perms last -> error
-			// delete or error
+		})
+		.then(() => {
+			const sqlCheckHasChilds = 'SELECT categoryId FROM categories WHERE parentCategoryId = ?';
+			databaseQuerry(sqlCheckHasChilds, categoryId);
+		})
+		.then(childs => {
+			if (childs.length > 0 && !canDeleteWith) {
+				throw new Error('No permissions to delete category with childs!');
+			}
+		})
+		.then(() => {
+			const sqlChangeParentId = 'UPDATE categories SET parentCategoryId = ? WHERE parentCategoryId = ?';
+			databaseQuerry(sqlChangeParentId, [isMain ? null : parentId, categoryId]);
+		})
+		.then(() => {
+			const sqlDeleteCategory = 'DELETE FROM categories WHERE categoryId = ?';
+			databaseQuerry(sqlDeleteCategory, categoryId);
 		})
 		.catch(err => errorHanlder(err, response));
+});
+
+app.put('/changecategory', hasPerm(perms.EDIT_CATEGORY), (request, response) => {
+	logger.log('Changecategory', request.body);
+	const categoryId = request.body?.categoryId;
+	if (!categoryId) {
+		return errorHanlder('No id to change!', response);
+	} else if (!request.body?.newTitle && !request.body?.newParentId) {
+		return errorHanlder('No new value!', response);
+	}
+
+	let sqlChangeCategory = 'UPDATE categories SET ';
+	const insetValues = [];
+
+	if (request.body?.newTitle) {
+		sqlChangeCategory += request.body.newTitle + ' = ?, ';
+		insetValues.push(request.body.newTitle);
+	}
+
+	if (request.body?.newParentId) {
+		sqlChangeCategory += request.body.newParentId + ' = ?, ';
+		insetValues.push(request.body.newParentId);
+	}
+
+	sqlChangeCategory = sqlChangeCategory.substring(0, sqlChangeCategory.length - 2) + ' WHERE categoryId = ?';
+	databaseQuerry(sqlChangeCategory, [...insetValues, categoryId])
+		.then(() => response.sendStatus(200))
+		.then(() => logger.log('Changecategory success!'))
+		.catch((err) => errorHanlder(err, response));
 });
 
 function addDocument(request, response) {
@@ -321,7 +363,7 @@ function addDocument(request, response) {
 	databaseQuerry(sqlCheckEntitiyId, [request.body.entityId, type])
 		.then(data => {
 			if (data.length >= JSON.parse(request.user.permissions).find(perm => perm.id === perms[`ADD_${type.toUpperCase()}S`].id).value) {
-				throw Error(`Too much ${type}s on this entity!`);
+				throw new Error(`Too much ${type}s on this entity!`);
 			}
 		})
 		.then(() => {
@@ -370,7 +412,7 @@ function checkAuth(request, response, next) {
 
 	logger.log('Check Auth of', request.headers.authorization);
 	if (!request.headers.authorization) {
-		return errorHanlder('Authentication required!', response, 400);
+		return errorHanlder(`Authentication required for ${request.url}! - ${request.ip} - ${request.hostname}`, response, 400);
 	}
 
 	const b64auth = request.headers.authorization.split(' ')[1];
@@ -411,10 +453,10 @@ const checkAuthOf = async (username, password, request, response, next) => {
 
 function hasPerm(...perms) {
 	return function (request, response, next) {
-		logger.log('Check that', request.user, 'has', perms);
+		logger.log(`Check that ${request.user} has ${perms}`);
 
 		const permsToCheck = JSON.parse(request.user.permissions).isDefault ? getDefaultPermissions() : JSON.parse(request.user.permissions);
-		if (!request.user?.permissions || !containsAll(permsToCheck, perms)) {
+		if (!request.user?.permissions || !containsAllPerms(permsToCheck, perms)) {
 			return errorHanlder('No permissions for this action!', response, 403);
 		}
 		logger.log('Permcheck success');
@@ -422,7 +464,7 @@ function hasPerm(...perms) {
 	};
 }
 
-const containsAll = (have, mustHave) => {
+const containsAllPerms = (have, mustHave) => {
 	have = have.map(perm => perm.id ?? perm);
 	if (have.indexOf(perms.ADMIN) !== -1) {
 		return true;
@@ -434,6 +476,11 @@ const containsAll = (have, mustHave) => {
 	}
 	return true;
 };
+
+const containsOnePerm = (have, mustHave) => {
+	have = have.map(perm => perm.id ?? perm);
+	return have.indexOf(mustHave.id) !== -1;
+}
 
 const getDefaultPermissions = () => {
 	const retPerms = [];
@@ -449,6 +496,8 @@ const getDefaultPermissions = () => {
 
 const getAllowedEntityProperties = () =>
 	['title', 'comment', 'description', 'rating', 'categoryId', 'price', 'brand', 'percentage', 'contentVolume', 'documentIds'];
+
+const getAllowedCategoryProperties = () => ['parentCategoryId', 'title'];
 
 function checkFileAndMimetype(mimetype) {
 	return async function (request, file, callback) {
