@@ -80,7 +80,7 @@ app.delete('/deleteuser', (request, response) => {
 		.catch(() => errorHanlder('Error! While deleting!', response));
 });
 
-app.put('/changepassword', hasPerm(perms.EDIT_PASSWORD), (request, response) => {
+app.put('/changepassword', hasPerms(perms.EDIT_PASSWORD), (request, response) => {
 	logger.log('Changepassword', request.user);
 	if (!request.body?.newPassword) {
 		return errorHanlder('Empty newPassword!', response);
@@ -90,7 +90,7 @@ app.put('/changepassword', hasPerm(perms.EDIT_PASSWORD), (request, response) => 
 		.then(salt => {
 			const sqlChangePassword = 'UPDATE users SET password = ? WHERE username = ?';
 			databaseQuerry(sqlChangePassword, [salt, request.user.username])
-				.then(() => updateCachedUser(request.user.username, { ...request.user, password: salt }))
+				.then(() => updateCachedUser(request.user.username, { password: salt }))
 				.then(() => response.sendStatus(200))
 				.then(() => logger.log('Change success'))
 				.catch(() => errorHanlder('Error while changing password!', response));
@@ -98,7 +98,7 @@ app.put('/changepassword', hasPerm(perms.EDIT_PASSWORD), (request, response) => 
 		.catch(() => errorHanlder('Error while creating salt!', response));
 });
 
-app.put('/changeusername', hasPerm(perms.EDIT_USERNAME), (request, response) => {
+app.put('/changeusername', hasPerms(perms.EDIT_USERNAME), (request, response) => {
 	logger.log('Changeusername', request.user, request.body?.newUsername);
 	if (!request.body?.newUsername) {
 		return errorHanlder('Empty new username!', response);
@@ -106,7 +106,7 @@ app.put('/changeusername', hasPerm(perms.EDIT_USERNAME), (request, response) => 
 
 	const sqlChangeUsername = 'UPDATE users SET username = ? WHERE username = ?';
 	databaseQuerry(sqlChangeUsername, [request.body.newUsername, request.user.username])
-		.then(() => updateCachedUser(request.user.username, { ...request.user, username: request.body.newUsername }))
+		.then(() => updateCachedUser(request.user.username, { username: request.body.newUsername }))
 		.then(() => response.sendStatus(200))
 		.then(() => logger.log('Change success'))
 		.catch(() => errorHanlder('Error while changing username!', response));
@@ -118,11 +118,11 @@ app.delete('/logout', (request, response) => {
 	response.sendStatus(200);
 });
 
-app.get('/getfoods', hasPerm(perms.VIEW_FOOD), (request, response) => {
+app.get('/getfoods', hasPerms(perms.VIEW_FOOD), (request, response) => {
 	logger.log('Getfoods', request.user);
 
 	const sqlGetFoods = 'SELECT * FROM entity';
-	databaseQuerry(sqlGetFoods, [])
+	databaseQuerry(sqlGetFoods)
 		.then(data => {
 			data.forEach(obj => {
 				for (var propName in obj) {
@@ -133,11 +133,11 @@ app.get('/getfoods', hasPerm(perms.VIEW_FOOD), (request, response) => {
 			});
 			response.status(200).send(data);
 		})
-		.then(() => logger.log('Change success'))
+		.then(() => logger.log('Get success'))
 		.catch(() => errorHanlder('Error while getting foods!', response));
 });
 
-app.post('/addfood', hasPerm(perms.ADD_FOOD), (request, response) => {
+app.post('/addfood', hasPerms(perms.ADD_FOOD), (request, response) => {
 	logger.log('Addfood', request.body);
 	if (!request.body) {
 		return errorHanlder('No food!', response);
@@ -157,7 +157,7 @@ app.post('/addfood', hasPerm(perms.ADD_FOOD), (request, response) => {
 		.catch((err) => errorHanlder(err, response));
 });
 
-app.put('/changefood', hasPerm(perms.CHANGE_FOOD), (request, response) => {
+app.put('/changefood', hasPerms(perms.CHANGE_FOOD), (request, response) => {
 	logger.log('Changefood', request.body);
 	if (!request.body) {
 		return errorHanlder('No food!', response);
@@ -185,7 +185,7 @@ app.put('/changefood', hasPerm(perms.CHANGE_FOOD), (request, response) => {
 		.catch((err) => errorHanlder(err, response));
 });
 
-app.put('/deletefood', hasPerm(perms.DELETE_FOOD), (request, response) => {
+app.put('/deletefood', hasPerms(perms.DELETE_FOOD), (request, response) => {
 	logger.log('Deletefood', request.body);
 	if (!request.body?.idToDelete) {
 		return errorHanlder('No id to delete!', response);
@@ -220,22 +220,22 @@ const multerStorage = multer.diskStorage({
 });
 app.post('/addimage',
 	checkAuth,
-	hasPerm(perms.ADD_IMAGES),
+	hasPerms(perms.ADD_IMAGES),
 	multer({ dest: 'documents/', fileFilter: checkFileAndMimetype('image'), storage: multerStorage }).any(),
 	addDocument
 );
 
-app.put('/deleteimage', hasPerm(perms.DELETE_IMAGES), deleteDocument);
+app.put('/deleteimage', hasPerms(perms.DELETE_IMAGES), deleteDocument);
 
 app.post('/addvideo',
-	hasPerm(perms.ADD_VIDEOS),
+	hasPerms(perms.ADD_VIDEOS),
 	multer({ dest: 'documents/', fileFilter: checkFileAndMimetype('video'), storage: multerStorage }).any(),
 	addDocument
 );
 
-app.put('/deletevideo', hasPerm(perms.DELETE_VIDEOS), deleteDocument);
+app.put('/deletevideo', hasPerms(perms.DELETE_VIDEOS), deleteDocument);
 
-app.post('/addcategory', hasPerm(perms.CREATE_CATEGORY), (request, response) => {
+app.post('/addcategory', hasPerms(perms.CREATE_CATEGORY), (request, response) => {
 	logger.log('Addcategory', request.body);
 	if (!request.body) {
 		return errorHanlder('No category to add!', response);
@@ -315,7 +315,7 @@ app.put('/deletecategory', async (request, response) => {
 		.catch(err => errorHanlder(err, response));
 });
 
-app.put('/changecategory', hasPerm(perms.EDIT_CATEGORY), (request, response) => {
+app.put('/changecategory', hasPerms(perms.EDIT_CATEGORY), (request, response) => {
 	logger.log('Changecategory', request.body);
 	const categoryId = request.body?.categoryId;
 	if (!categoryId) {
@@ -342,6 +342,73 @@ app.put('/changecategory', hasPerm(perms.EDIT_CATEGORY), (request, response) => 
 		.then(() => response.sendStatus(200))
 		.then(() => logger.log('Changecategory success!'))
 		.catch((err) => errorHanlder(err, response));
+});
+
+app.get('/getusers', hasPerms(perms.VIEW_USERS), (request, response) => {
+	logger.log('Getusers');
+	const sqlGetUsers = 'SELECT username, userId FROM users';
+	databaseQuerry(sqlGetUsers)
+		.then(users => response.status(200).send(users))
+		.catch(() => errorHanlder('Error while getting users!', response));
+});
+
+app.put('/getfavorites', hasPerms(perms.VIEW_USERS, perms.VIEW_USERS_FAVORITES), (request, response) => {
+	logger.log('Getfavorites', request.body);
+	const userId = request.body?.userId;
+	if (!userId) {
+		return errorHanlder('No userId!', response);
+	}
+
+	const sqlGetFavorites = 'SELECT favorites FROM users WHERE userId = ?';
+	databaseQuerry(sqlGetFavorites, userId)
+		.then(favs => response.status(200).send(favs))
+		.catch(() => errorHanlder('Error while getting favorites!', response));
+});
+
+app.post('/addfavorite', async (request, response) => {
+	logger.log('Addfavorite', request.body);
+	const foodId = request.body?.foodId;
+	if (!foodId) {
+		return errorHanlder('No foodId to add!', response);
+	}
+	let favorites = JSON.parse(request.user.favorites || '[]');
+
+	if (favorites.includes(foodId)) {
+		return errorHanlder('Id already a fav!', response);
+	} else if ((await databaseQuerry('SELECT entityId FROM entity WHERE entityId = ?', foodId)).length === 0) {
+		return errorHanlder('No entity for this id!', response);
+	}
+
+	favorites = JSON.stringify([...favorites, foodId]);
+
+	const sqlUpdateFavs = 'UPDATE users SET favorites = ? WHERE userId = ?';
+	databaseQuerry(sqlUpdateFavs, [favorites, request.user.userId])
+		.then(() => updateCachedUser(request.user.username, { favorites }))
+		.then(() => response.sendStatus(200))
+		.then(() => logger.log('Add fav success!'))
+		.catch(() => errorHanlder('Error while add fav!', response));
+});
+
+app.put('/deletefavorite', (request, response) => {
+	logger.log('Deletefavorite', request.body);
+	const foodId = request.body?.foodId;
+	if (!foodId) {
+		return errorHanlder('No foodId to delete!', response);
+	}
+	let favorites = JSON.parse(request.user.favorites || '[]');
+
+	if (!favorites.includes(foodId)) {
+		return errorHanlder('Id not in favs!', response);
+	}
+
+	favorites = JSON.stringify([...favorites.filter(favId => favId !== foodId)]);
+
+	const sqlUpdateFavs = 'UPDATE users SET favorites = ? WHERE userId = ?';
+	databaseQuerry(sqlUpdateFavs, [favorites, request.user.userId])
+		.then(() => updateCachedUser(request.user.username, { favorites }))
+		.then(() => response.sendStatus(200))
+		.then(() => logger.log('Add fav success!'))
+		.catch(() => errorHanlder('Error while add fav!', response));
 });
 
 function addDocument(request, response) {
@@ -406,13 +473,14 @@ const errorHanlder = (err, response = undefined, status = 500) => {
 };
 
 function checkAuth(request, response, next) {
+	logger.log(`${request.ip} try to connect!`);
 	if (['/', '/info', '/register'].includes(request.url)) {
 		return next();
 	}
 
 	logger.log('Check Auth of', request.headers.authorization);
 	if (!request.headers.authorization) {
-		return errorHanlder(`Authentication required for ${request.url}! - ${request.ip} - ${request.hostname}`, response, 400);
+		return errorHanlder(`Authentication required for ${request.url}!`, response, 400);
 	}
 
 	const b64auth = request.headers.authorization.split(' ')[1];
@@ -451,12 +519,12 @@ const checkAuthOf = async (username, password, request, response, next) => {
 		.catch(err => errorHanlder(err, response));
 };
 
-function hasPerm(...perms) {
+function hasPerms(...perms) {
 	return function (request, response, next) {
-		logger.log(`Check that ${request.user} has ${perms}`);
+		logger.log('Check that', request.user, 'has', perms);
 
 		const permsToCheck = JSON.parse(request.user.permissions).isDefault ? getDefaultPermissions() : JSON.parse(request.user.permissions);
-		if (!request.user?.permissions || !containsAllPerms(permsToCheck, perms)) {
+		if (!containsAllPerms(permsToCheck, perms)) {
 			return errorHanlder('No permissions for this action!', response, 403);
 		}
 		logger.log('Permcheck success');
@@ -466,7 +534,7 @@ function hasPerm(...perms) {
 
 const containsAllPerms = (have, mustHave) => {
 	have = have.map(perm => perm.id ?? perm);
-	if (have.indexOf(perms.ADMIN) !== -1) {
+	if (have.indexOf(perms.ADMIN.id) !== -1) {
 		return true;
 	}
 	for (const must of mustHave) {
@@ -480,7 +548,7 @@ const containsAllPerms = (have, mustHave) => {
 const containsOnePerm = (have, mustHave) => {
 	have = have.map(perm => perm.id ?? perm);
 	return have.indexOf(mustHave.id) !== -1;
-}
+};
 
 const getDefaultPermissions = () => {
 	const retPerms = [];

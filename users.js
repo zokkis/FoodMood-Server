@@ -26,12 +26,20 @@ functions.deleteCachedUser = (username) => {
 	cachedUsers.splice(index, 1);
 };
 
-functions.updateCachedUser = (oldUsername, newUser) => {
-	if (!oldUsername || !newUser) {
-		return logger.error('updateCachedUser - missing input', oldUsername, newUser);
+functions.updateCachedUser = (oldUsername, newUserData) => {
+	if (!oldUsername || !newUserData) {
+		return logger.error('updateCachedUser - missing input', oldUsername, newUserData);
 	}
-	functions.deleteCachedUser(oldUsername);
-	functions.addCachedUser(newUser);
+	const user = cachedUsers.find(user => user.username === oldUsername);
+
+	for (const key in newUserData) {
+		if (!functions.getAllowedProperties().includes(key)) {
+			logger.warn('Too much data -', key);
+			continue;
+		}
+		user[key] = newUserData[key];
+	}
+	functions.resetCacheTimeOf(user);
 };
 
 functions.resetCacheTimeOf = (user) => {

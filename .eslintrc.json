@@ -26,7 +26,6 @@
 			"always"
 		],
 		"no-await-in-loop": "error",
-		"no-console": "error",
-		"debugger": "error"
+		"no-console": "error"
 	}
 }
