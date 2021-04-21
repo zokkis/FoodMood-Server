@@ -121,8 +121,9 @@ app.delete('/logout', (request, response) => {
 app.get('/getfoods', hasPerms(perms.VIEW_FOOD), (request, response) => {
 	logger.log('Getfoods', request.user);
 
-	const sqlGetFoods = 'SELECT * FROM entity';
-	databaseQuerry(sqlGetFoods)
+	let sqlGetFoods = 'SELECT * FROM entity';
+	sqlGetFoods += isValideSQLTimestamp(request.body.lastEdit) ? ' WHERE lastEdit >= ?' : '';
+	databaseQuerry(sqlGetFoods, request.body.lastEdit)
 		.then(data => {
 			data.forEach(obj => {
 				for (var propName in obj) {
@@ -344,10 +345,12 @@ app.put('/changecategory', hasPerms(perms.EDIT_CATEGORY), (request, response) =>
 		.catch((err) => errorHanlder(err, response));
 });
 
-app.get('/getusers', hasPerms(perms.VIEW_USERS), (request, response) => {
+app.put('/getusers', hasPerms(perms.VIEW_USERS), (request, response) => {
 	logger.log('Getusers');
-	const sqlGetUsers = 'SELECT username, userId FROM users';
-	databaseQuerry(sqlGetUsers)
+
+	let sqlGetUsers = 'SELECT username, userId FROM users';
+	sqlGetUsers += isValideSQLTimestamp(request.body.lastEdit) ? ' WHERE lastEdit >= ?' : '';
+	databaseQuerry(sqlGetUsers, request.body.lastEdit)
 		.then(users => response.status(200).send(users))
 		.catch(() => errorHanlder('Error while getting users!', response));
 });
@@ -359,8 +362,9 @@ app.put('/getfavorites', hasPerms(perms.VIEW_USERS, perms.VIEW_USERS_FAVORITES),
 		return errorHanlder('No userId!', response);
 	}
 
-	const sqlGetFavorites = 'SELECT favorites FROM users WHERE userId = ?';
-	databaseQuerry(sqlGetFavorites, userId)
+	let sqlGetFavorites = 'SELECT favorites FROM users WHERE userId = ?';
+	sqlGetFavorites += isValideSQLTimestamp(request.body.lastEdit) ? ' WHERE lastEdit >= ?' : '';
+	databaseQuerry(sqlGetFavorites, [userId, request.body.lastEdit])
 		.then(favs => response.status(200).send(favs))
 		.catch(() => errorHanlder('Error while getting favorites!', response));
 });
@@ -639,3 +643,7 @@ function checkFileAndMimetype(mimetype) {
 const deletePath = path => {
 	fs.rm(path, { recursive: true, force: true }, err => err ? logger.log(err) : null);
 };
+
+const isValideSQLTimestamp = stamp => {
+	return typeof stamp === 'string' && /([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]) ([01]\d|2[0-3]):([0-5]\d):([0-5]\d))/.test(stamp);
+}
