@@ -530,10 +530,11 @@ const sendDocument = (request, response) => {
 				throw new Error('No document found!');
 			}
 			image = image[0];
+			// eslint-disable-next-line
 			response.status(200).sendFile(`${__dirname}/documents/${image.entityId}/${image.name}`);
 		})
 		.catch(() => errorHanlder('Error while getting document!', response));
-}
+};
 
 function deleteDocument(request, response) {
 	logger.log('Deletedocument', request.body?.documentId);
@@ -688,4 +689,4 @@ const isValideSQLTimestamp = stamp => {
 
 const getPermsToCheck = perms => {
 	return JSON.parse(perms).isDefault ? getDefaultPermissions() : JSON.parse(perms);
-}
+};
