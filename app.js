@@ -118,7 +118,7 @@ app.delete('/logout', (request, response) => {
 	response.sendStatus(200);
 });
 
-app.get('/getfoods', hasPerms(perms.VIEW_FOOD), (request, response) => {
+app.put('/getfoods', hasPerms(perms.VIEW_FOOD), (request, response) => {
 	logger.log('Getfoods', request.user);
 
 	let sqlGetFoods = 'SELECT * FROM entity';
@@ -220,11 +220,15 @@ const multerStorage = multer.diskStorage({
 	}
 });
 app.post('/addimage',
-	checkAuth,
 	hasPerms(perms.ADD_IMAGES),
 	multer({ dest: 'documents/', fileFilter: checkFileAndMimetype('image'), storage: multerStorage }).any(),
 	addDocument
 );
+
+app.put('/getimage', hasPerms(perms.VIEW_IMAGES), (request, response) => {
+	logger.log('Getimage');
+	sendDocument(request, response);
+});
 
 app.put('/deleteimage', hasPerms(perms.DELETE_IMAGES), deleteDocument);
 
@@ -233,6 +237,11 @@ app.post('/addvideo',
 	multer({ dest: 'documents/', fileFilter: checkFileAndMimetype('video'), storage: multerStorage }).any(),
 	addDocument
 );
+
+app.put('/getvideo', hasPerms(perms.VIEW_VIDEOS), (request, response) => {
+	logger.log('Getvideo');
+	sendDocument(request, response);
+});
 
 app.put('/deletevideo', hasPerms(perms.DELETE_VIDEOS), deleteDocument);
 
@@ -268,7 +277,7 @@ app.put('/deletecategory', async (request, response) => {
 		return errorHanlder('There is a food with this id! -> refactor this!', response);
 	}
 
-	const permsToCheck = JSON.parse(request.user.permissions).isDefault ? getDefaultPermissions() : JSON.parse(request.user.permissions);
+	const permsToCheck = getPermsToCheck(request.user.permissions);
 	const canDeleteMain = containsOnePerm(permsToCheck, perms.DELETE_CATEGORY_MAIN);
 	const canDeleteWith = containsOnePerm(permsToCheck, perms.DELETE_CATEGORY_WITH_CHILD);
 	const canDeleteLast = containsOnePerm(permsToCheck, perms.DELETE_CATEGORY_LAST_CHILD);
@@ -343,6 +352,19 @@ app.put('/changecategory', hasPerms(perms.EDIT_CATEGORY), (request, response) =>
 		.then(() => response.sendStatus(200))
 		.then(() => logger.log('Changecategory success!'))
 		.catch((err) => errorHanlder(err, response));
+});
+
+app.put('/getcategories', (request, response) => {
+	logger.log('Getcategories');
+
+	let sqlGetCategories = 'SELECT * FROM categories';
+	sqlGetCategories += isValideSQLTimestamp(request.body.lastEdit) ? ' WHERE lastEdit >= ?' : '';
+	databaseQuerry(sqlGetCategories, request.body.lastEdit)
+		.then(categories => {
+			delete categories.lastEdit;
+			response.status(200).send(categories);
+		})
+		.catch(() => errorHanlder('Error while getting categories!', response));
 });
 
 app.put('/getusers', hasPerms(perms.VIEW_USERS), (request, response) => {
@@ -480,7 +502,7 @@ function addDocument(request, response) {
 	const sqlCheckEntitiyId = 'SELECT entityId FROM documents WHERE entityId = ? AND type = ?';
 	databaseQuerry(sqlCheckEntitiyId, [request.body.entityId, type])
 		.then(data => {
-			if (data.length >= JSON.parse(request.user.permissions).find(perm => perm.id === perms[`ADD_${type.toUpperCase()}S`].id).value) {
+			if (data.length >= getPermsToCheck(request.user.permissions).find(perm => perm.id === perms[`ADD_${type.toUpperCase()}S`].id)?.value) {
 				throw new Error(`Too much ${type}s on this entity!`);
 			}
 		})
@@ -494,6 +516,23 @@ function addDocument(request, response) {
 			fs.rm(request.file.path, () => { });
 			errorHanlder(err.message, response);
 		});
+}
+
+const sendDocument = (request, response) => {
+	if (!request.body?.documentId) {
+		return errorHanlder('No documentId!', response);
+	}
+
+	const sqlGetImage = 'SELECT name, entityId FROM documents WHERE documentId = ?';
+	databaseQuerry(sqlGetImage, request.body.documentId)
+		.then(image => {
+			if (image.length !== 1) {
+				throw new Error('No document found!');
+			}
+			image = image[0];
+			response.status(200).sendFile(`${__dirname}/documents/${image.entityId}/${image.name}`);
+		})
+		.catch(() => errorHanlder('Error while getting document!', response));
 }
 
 function deleteDocument(request, response) {
@@ -574,8 +613,7 @@ function hasPerms(...perms) {
 	return function (request, response, next) {
 		logger.log('Check that', request.user, 'has', perms);
 
-		const permsToCheck = JSON.parse(request.user.permissions).isDefault ? getDefaultPermissions() : JSON.parse(request.user.permissions);
-		if (!containsAllPerms(permsToCheck, perms)) {
+		if (!containsAllPerms(getPermsToCheck(request.user.permissions), perms)) {
 			return errorHanlder('No permissions for this action!', response, 403);
 		}
 		logger.log('Permcheck success');
@@ -646,4 +684,8 @@ const deletePath = path => {
 
 const isValideSQLTimestamp = stamp => {
 	return typeof stamp === 'string' && /([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]) ([01]\d|2[0-3]):([0-5]\d):([0-5]\d))/.test(stamp);
+};
+
+const getPermsToCheck = perms => {
+	return JSON.parse(perms).isDefault ? getDefaultPermissions() : JSON.parse(perms);
 }
