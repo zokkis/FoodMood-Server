@@ -401,7 +401,7 @@ app.put('/deletefavorite', (request, response) => {
 		return errorHanlder('Id not in favs!', response);
 	}
 
-	favorites = JSON.stringify([...favorites.filter(favId => favId !== foodId)]);
+	favorites = JSON.stringify(favorites.filter(favId => favId !== foodId));
 
 	const sqlUpdateFavs = 'UPDATE users SET favorites = ? WHERE userId = ?';
 	databaseQuerry(sqlUpdateFavs, [favorites, request.user.userId])
@@ -409,6 +409,53 @@ app.put('/deletefavorite', (request, response) => {
 		.then(() => response.sendStatus(200))
 		.then(() => logger.log('Add fav success!'))
 		.catch(() => errorHanlder('Error while add fav!', response));
+});
+
+app.post('/addshoppeinglist', async (request, response) => {
+	logger.log('Addshoppeinglist', request.body);
+	const foodId = request.body?.foodId;
+	const amount = request.body?.amount;
+	if (!foodId || !amount) {
+		return errorHanlder('No foodId or amount to add!', response);
+	}
+	let shoppingList = JSON.parse(request.user.shoppingList || '[]');
+
+	if (shoppingList.find(list => list.foodId === foodId)) {
+		return errorHanlder('Id already in shoppingList!', response);
+	} else if ((await databaseQuerry('SELECT entityId FROM entity WHERE entityId = ?', foodId)).length === 0) {
+		return errorHanlder('No entity for this id!', response);
+	}
+
+	shoppingList = JSON.stringify([...shoppingList, { foodId, amount }]);
+
+	const sqlUpdateList = 'UPDATE users SET shoppingList = ? WHERE userId = ?';
+	databaseQuerry(sqlUpdateList, [shoppingList, request.user.userId])
+		.then(() => updateCachedUser(request.user.username, { shoppingList }))
+		.then(() => response.sendStatus(200))
+		.then(() => logger.log('Add shoppingList success!'))
+		.catch(() => errorHanlder('Error while add shoppingList!', response));
+});
+
+app.put('/deleteshoppinglist', (request, response) => {
+	logger.log('Deleteshoppinglist', request.body);
+	const foodId = request.body?.foodId;
+	if (!foodId) {
+		return errorHanlder('No foodId to delete!', response);
+	}
+	let shoppingList = JSON.parse(request.user.shoppingList || '[]');
+
+	if (!shoppingList.find(list => list.foodId === foodId)) {
+		return errorHanlder('Id isn\'t in shoppingList!', response);
+	}
+
+	shoppingList = JSON.stringify(shoppingList.filter(list => list.foodId !== foodId));
+
+	const sqlDeleteList = 'UPDATE users SET shoppingList = ? WHERE userId = ?';
+	databaseQuerry(sqlDeleteList, [shoppingList, request.user.userId])
+		.then(() => updateCachedUser(request.user.username, { shoppingList }))
+		.then(() => response.sendStatus(200))
+		.then(() => logger.log('Delete shoppingList success!'))
+		.catch(() => errorHanlder('Error while delete shoppingList!', response));
 });
 
 function addDocument(request, response) {
