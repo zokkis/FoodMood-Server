@@ -34,34 +34,37 @@
 	"EDIT_MESSAGES": {
 		"id": 1000
 	},
-	"CREATE_CATEGORY": {
+	"DELETE_MESSAGES": {
 		"id": 1100
 	},
-	"EDIT_CATEGORY": {
+	"CREATE_CATEGORY": {
 		"id": 1200
 	},
-	"DELETE_CATEGORY_LAST_CHILD": {
+	"EDIT_CATEGORY": {
 		"id": 1300
 	},
-	"DELETE_CATEGORY_WITH_CHILD": {
+	"DELETE_CATEGORY_LAST_CHILD": {
 		"id": 1400
 	},
-	"DELETE_CATEGORY_MAIN": {
+	"DELETE_CATEGORY_WITH_CHILD": {
 		"id": 1500
 	},
-	"VIEW_IMAGES": {
-		"id": 1600,
-		"isDefault": true
+	"DELETE_CATEGORY_MAIN": {
+		"id": 1600
 	},
-	"VIEW_VIDEOS": {
+	"VIEW_IMAGES": {
 		"id": 1700,
 		"isDefault": true
 	},
+	"VIEW_VIDEOS": {
+		"id": 1800,
+		"isDefault": true
+	},
 	"DELETE_IMAGES": {
-		"id": 1800
+		"id": 1900
 	},
 	"DELETE_VIDEOS": {
-		"id": 1900
+		"id": 2000
 	},
 	"ADD_IMAGES": {
 		"id": 15000,

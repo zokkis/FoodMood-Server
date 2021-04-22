@@ -11,6 +11,7 @@ const { addCachedUser, resetCacheTimeOf, getCachedUsers, prepareUserToSend, dele
 const { databaseQuerry } = require('./database');
 const _ = require('lodash');
 const multer = require('multer');
+const { request, response } = require('express');
 
 program
 	.addOption(new Option('-d, --dev', 'run in dev').default(false))
@@ -289,8 +290,8 @@ app.put('/deletecategory', async (request, response) => {
 	let isMain = false;
 	let parentId;
 
-	const sqlGetCategory = 'SELECT parentCategoryId FROM categories WHERE categoryId = ?';
-	databaseQuerry(sqlGetCategory, categoryId)
+	const sqlDeleteCategory = 'SELECT parentCategoryId FROM categories WHERE categoryId = ?';
+	databaseQuerry(sqlDeleteCategory, categoryId)
 		.then(data => {
 			if (data.length !== 1) {
 				throw new Error(data.length === 0 ? 'No category for this id!' : 'Internal error with this id!');
@@ -370,7 +371,7 @@ app.put('/getcategories', (request, response) => {
 app.put('/getusers', hasPerms(perms.VIEW_USERS), (request, response) => {
 	logger.log('Getusers');
 
-	let sqlGetUsers = 'SELECT username, userId FROM users';
+	let sqlGetUsers = 'SELECT lastEdit, username, userId FROM users';
 	sqlGetUsers += isValideSQLTimestamp(request.body.lastEdit) ? ' WHERE lastEdit >= ?' : '';
 	databaseQuerry(sqlGetUsers, request.body.lastEdit)
 		.then(users => response.status(200).send(users))
@@ -384,7 +385,7 @@ app.put('/getfavorites', hasPerms(perms.VIEW_USERS, perms.VIEW_USERS_FAVORITES),
 		return errorHanlder('No userId!', response);
 	}
 
-	let sqlGetFavorites = 'SELECT favorites FROM users WHERE userId = ?';
+	let sqlGetFavorites = 'SELECT lastEdit, favorites FROM users WHERE userId = ?';
 	sqlGetFavorites += isValideSQLTimestamp(request.body.lastEdit) ? ' WHERE lastEdit >= ?' : '';
 	databaseQuerry(sqlGetFavorites, [userId, request.body.lastEdit])
 		.then(favs => response.status(200).send(favs))
@@ -482,6 +483,29 @@ app.put('/deleteshoppinglist', (request, response) => {
 		.then(() => response.sendStatus(200))
 		.then(() => logger.log('Delete shoppingList success!'))
 		.catch(() => errorHanlder('Error while delete shoppingList!', response));
+});
+
+app.post('/sendmessage', hasPerms(perms.SEND_MESSAGES), (request, response) => {
+	logger.log('Sendmessage');
+	if (!request.body?.message) {
+		return errorHanlder('No message to send!', response);
+	} else if (!request.body.receiverId) {
+		return errorHanlder('No receiver set!', response);
+	}
+	//Refactor -> use cache
+	const checkIsUser = 'SELECT userId FROM users WHERE userId = ?';
+	databaseQuerry(checkIsUser, request.body.receiverId)
+		.then(user => {
+			if (user.length !== 1) {
+				throw new Error('No user to this id!');
+			}
+		})
+		.then(() => {
+			const addMessage = 'INSERT INTO messages SET ?';
+			databaseQuerry(addMessage, { senderId: request.user.userId, receiverId: request.body.receiverId, message: request.body.message })
+		})
+		.then(() => logger.log('Send message success!'))
+		.catch(err => errorHanlder(err.message, response));
 });
 
 function addDocument(request, response) {
@@ -680,7 +704,7 @@ function checkFileAndMimetype(mimetype) {
 }
 
 const deletePath = path => {
-	fs.rm(path, { recursive: true, force: true }, err => err ? logger.log(err) : null);
+	fs.rm(path, { recursive: true, force: true }, err => err ? logger.error(err) : null);
 };
 
 const isValideSQLTimestamp = stamp => {
