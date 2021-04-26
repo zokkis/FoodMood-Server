@@ -1,17 +1,17 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
 const cors = require('cors');
 const Logger = require('./logger');
 const fs = require('fs');
 const https = require('https');
 const perms = require('./permissions.json');
-const package = require('./package.json');
+const package = require('../package.json');
 const { program, Option } = require('commander');
-const { addCachedUser, resetCacheTimeOf, getCachedUsers, prepareUserToSend, deleteCachedUser, getAllowedProperties, updateCachedUser } = require('./users');
+const { updateCachedUser } = require('./users/cachedUsers');
 const { databaseQuerry } = require('./database');
 const _ = require('lodash');
 const multer = require('multer');
-const { request, response } = require('express');
+const expressUser = require('./users/expressUser');
+const expressFood = require('./foods/expressFoods');
 
 program
 	.addOption(new Option('-d, --dev', 'run in dev').default(false))
@@ -23,7 +23,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(checkAuth);
+app.use(expressUser.checkAuth);
 
 https.createServer({
 	key: fs.readFileSync('./private_files/private.pem'),
@@ -41,165 +41,28 @@ app.get('/info', (request, response) => {
 	response.status(200).send({ isOnline: true, version: package.version, isDev: options.dev });
 });
 
-app.post('/register', (request, response) => {
-	logger.log('Register', request.body);
-	if (!request.body?.username || !request.body.password) {
-		return errorHanlder('Missing username or password!', response);
-	}
-
-	bcrypt.hash(request.body.password, 10)
-		.then(salt => {
-			for (const key in request.body) {
-				if (!getAllowedProperties().includes(key)) {
-					logger.warn('Too much data in register body!', key);
-					delete request.body[key];
-				}
-			}
-			request.body.permissions = JSON.stringify({ isDefault: true });
-
-			const sqlInsertUser = 'INSERT INTO users SET ?';
-			databaseQuerry(sqlInsertUser, { ...request.body, password: salt })
-				.then(() => response.sendStatus(200))
-				.then(() => logger.log('Register success'))
-				.catch(() => errorHanlder('Error! Username already taken!', response));
-		})
-		.catch(() => errorHanlder('Error while creating salt!', response));
-});
+app.post('/register', expressUser.register);
 
 app.get('/login', (request, response) => {
 	logger.log('Login', request.user);
 	response.status(200).send(request.user);
 });
 
-app.delete('/deleteuser', (request, response) => {
-	logger.log('Delete User', request.user);
-	const sqlDeleteUser = 'DELETE FROM users WHERE username = ?';
-	databaseQuerry(sqlDeleteUser, request.user.username)
-		.then(() => deleteCachedUser(request.user.username))
-		.then(() => response.sendStatus(200))
-		.then(() => logger.log('Delete success'))
-		.catch(() => errorHanlder('Error! While deleting!', response));
-});
+app.delete('/deleteuser', expressUser.deleteUser);
 
-app.put('/changepassword', hasPerms(perms.EDIT_PASSWORD), (request, response) => {
-	logger.log('Changepassword', request.user);
-	if (!request.body?.newPassword) {
-		return errorHanlder('Empty newPassword!', response);
-	}
+app.put('/changepassword', hasPerms(perms.EDIT_PASSWORD), expressUser.changePassword);
 
-	bcrypt.hash(request.body.newPassword, 10)
-		.then(salt => {
-			const sqlChangePassword = 'UPDATE users SET password = ? WHERE username = ?';
-			databaseQuerry(sqlChangePassword, [salt, request.user.username])
-				.then(() => updateCachedUser(request.user.username, { password: salt }))
-				.then(() => response.sendStatus(200))
-				.then(() => logger.log('Change success'))
-				.catch(() => errorHanlder('Error while changing password!', response));
-		})
-		.catch(() => errorHanlder('Error while creating salt!', response));
-});
+app.put('/changeusername', hasPerms(perms.EDIT_USERNAME), expressUser.changeUsername);
 
-app.put('/changeusername', hasPerms(perms.EDIT_USERNAME), (request, response) => {
-	logger.log('Changeusername', request.user, request.body?.newUsername);
-	if (!request.body?.newUsername) {
-		return errorHanlder('Empty new username!', response);
-	}
+app.delete('/logout', expressUser.logout);
 
-	const sqlChangeUsername = 'UPDATE users SET username = ? WHERE username = ?';
-	databaseQuerry(sqlChangeUsername, [request.body.newUsername, request.user.username])
-		.then(() => updateCachedUser(request.user.username, { username: request.body.newUsername }))
-		.then(() => response.sendStatus(200))
-		.then(() => logger.log('Change success'))
-		.catch(() => errorHanlder('Error while changing username!', response));
-});
+app.get('/getfoods', hasPerms(perms.VIEW_FOOD), expressFood.getFoods);
 
-app.delete('/logout', (request, response) => {
-	logger.log('Logout', request.user.username);
-	deleteCachedUser(request.user.username);
-	response.sendStatus(200);
-});
+app.post('/addfood', hasPerms(perms.ADD_FOOD), expressFood.addFood);
 
-app.put('/getfoods', hasPerms(perms.VIEW_FOOD), (request, response) => {
-	logger.log('Getfoods', request.user);
+app.put('/changefood', hasPerms(perms.CHANGE_FOOD), expressFood.changeFood);
 
-	let sqlGetFoods = 'SELECT * FROM entity';
-	sqlGetFoods += isValideSQLTimestamp(request.body.lastEdit) ? ' WHERE lastEdit >= ?' : '';
-	databaseQuerry(sqlGetFoods, request.body.lastEdit)
-		.then(data => {
-			data.forEach(obj => {
-				for (var propName in obj) {
-					if (!obj[propName]) {
-						delete obj[propName];
-					}
-				}
-			});
-			response.status(200).send(data);
-		})
-		.then(() => logger.log('Get success'))
-		.catch(() => errorHanlder('Error while getting foods!', response));
-});
-
-app.post('/addfood', hasPerms(perms.ADD_FOOD), (request, response) => {
-	logger.log('Addfood', request.body);
-	if (!request.body) {
-		return errorHanlder('No food!', response);
-	}
-
-	for (const key in request.body) {
-		if (!getAllowedEntityProperties().includes(key)) {
-			logger.warn('Too much data in addFood body!', key);
-			delete request.body[key];
-		}
-	}
-
-	const sqlInsertFood = 'INSERT INTO entity SET ?';
-	databaseQuerry(sqlInsertFood, request.body)
-		.then(() => response.sendStatus(200))
-		.then(() => logger.log('Insert success'))
-		.catch((err) => errorHanlder(err, response));
-});
-
-app.put('/changefood', hasPerms(perms.CHANGE_FOOD), (request, response) => {
-	logger.log('Changefood', request.body);
-	if (!request.body) {
-		return errorHanlder('No food!', response);
-	} else if (!request.body.idToChange || Number.isNaN(Number.parseInt(request.body.idToChange))) {
-		return errorHanlder('No id to change!', response);
-	}
-	const idToChange = request.body.idToChange;
-	let sqlChangeFood = 'UPDATE entity SET ';
-	const insetValues = [];
-
-	for (const key in request.body) {
-		if (getAllowedEntityProperties().includes(key)) {
-			sqlChangeFood += key + ' = ?, ';
-			insetValues.push(request.body[key]);
-		} else {
-			logger.warn('Too much data in changeFood body!', key);
-			delete request.body[key];
-		}
-	}
-
-	sqlChangeFood = sqlChangeFood.substring(0, sqlChangeFood.length - 2) + ' WHERE entityId = ?';
-	databaseQuerry(sqlChangeFood, [...insetValues, idToChange])
-		.then(() => response.sendStatus(200))
-		.then(() => logger.log('Changefood success'))
-		.catch((err) => errorHanlder(err, response));
-});
-
-app.put('/deletefood', hasPerms(perms.DELETE_FOOD), (request, response) => {
-	logger.log('Deletefood', request.body);
-	if (!request.body?.idToDelete) {
-		return errorHanlder('No id to delete!', response);
-	}
-
-	const sqlDeleteFood = 'DELETE FROM entity WHERE entityId = ?';
-	databaseQuerry(sqlDeleteFood, request.body.idToDelete)
-		.then(() => deletePath(`./documents/${request.body.idToDelete}/`))
-		.then(() => response.sendStatus(200))
-		.then(() => logger.log('Delete success'))
-		.catch((err) => errorHanlder(err, response));
-});
+app.delete('/deletefood/:id', hasPerms(perms.DELETE_FOOD), expressFood.deleteFood);
 
 if (!fs.existsSync('./documents')) {
 	fs.mkdirSync('./documents');
@@ -297,16 +160,13 @@ app.put('/deletecategory', async (request, response) => {
 				throw new Error(data.length === 0 ? 'No category for this id!' : 'Internal error with this id!');
 			}
 			parentId = data[0].parentCategoryId;
-		})
-		.then(() => {
+
 			if (parentId === null || parentId === categoryId) {
 				if (!canDeleteMain) {
 					throw new Error('No permissions to delete main-category!');
 				}
 				this.isMain = true;
 			}
-		})
-		.then(() => {
 			const sqlCheckHasChilds = 'SELECT categoryId FROM categories WHERE parentCategoryId = ?';
 			databaseQuerry(sqlCheckHasChilds, categoryId);
 		})
@@ -314,8 +174,6 @@ app.put('/deletecategory', async (request, response) => {
 			if (childs.length > 0 && !canDeleteWith) {
 				throw new Error('No permissions to delete category with childs!');
 			}
-		})
-		.then(() => {
 			const sqlChangeParentId = 'UPDATE categories SET parentCategoryId = ? WHERE parentCategoryId = ?';
 			databaseQuerry(sqlChangeParentId, [isMain ? null : parentId, categoryId]);
 		})
@@ -362,7 +220,9 @@ app.put('/getcategories', (request, response) => {
 	sqlGetCategories += isValideSQLTimestamp(request.body.lastEdit) ? ' WHERE lastEdit >= ?' : '';
 	databaseQuerry(sqlGetCategories, request.body.lastEdit)
 		.then(categories => {
-			delete categories.lastEdit;
+			for (const cat of categories) {
+				delete cat.lastEdit;
+			}
 			response.status(200).send(categories);
 		})
 		.catch(() => errorHanlder('Error while getting categories!', response));
@@ -405,8 +265,8 @@ app.post('/addfavorite', async (request, response) => {
 	} else if ((await databaseQuerry('SELECT entityId FROM entity WHERE entityId = ?', foodId)).length === 0) {
 		return errorHanlder('No entity for this id!', response);
 	}
-
-	favorites = JSON.stringify([...favorites, foodId]);
+	favorites.push(foodId);
+	favorites = JSON.stringify(favorites);
 
 	const sqlUpdateFavs = 'UPDATE users SET favorites = ? WHERE userId = ?';
 	databaseQuerry(sqlUpdateFavs, [favorites, request.user.userId])
@@ -428,6 +288,7 @@ app.put('/deletefavorite', (request, response) => {
 		return errorHanlder('Id not in favs!', response);
 	}
 
+	// remove from array function
 	favorites = JSON.stringify(favorites.filter(favId => favId !== foodId));
 
 	const sqlUpdateFavs = 'UPDATE users SET favorites = ? WHERE userId = ?';
@@ -453,7 +314,8 @@ app.post('/addshoppeinglist', async (request, response) => {
 		return errorHanlder('No entity for this id!', response);
 	}
 
-	shoppingList = JSON.stringify([...shoppingList, { foodId, amount }]);
+	shoppingList.push({ foodId, amount: amount ?? 1 });
+	shoppingList = JSON.stringify(shoppingList);
 
 	const sqlUpdateList = 'UPDATE users SET shoppingList = ? WHERE userId = ?';
 	databaseQuerry(sqlUpdateList, [shoppingList, request.user.userId])
@@ -493,19 +355,77 @@ app.post('/sendmessage', hasPerms(perms.SEND_MESSAGES), (request, response) => {
 		return errorHanlder('No receiver set!', response);
 	}
 	//Refactor -> use cache
-	const checkIsUser = 'SELECT userId FROM users WHERE userId = ?';
-	databaseQuerry(checkIsUser, request.body.receiverId)
+	const sqlCheckIsUser = 'SELECT userId FROM users WHERE userId = ?';
+	databaseQuerry(sqlCheckIsUser, request.body.receiverId)
 		.then(user => {
 			if (user.length !== 1) {
 				throw new Error('No user to this id!');
 			}
-		})
-		.then(() => {
 			const addMessage = 'INSERT INTO messages SET ?';
-			databaseQuerry(addMessage, { senderId: request.user.userId, receiverId: request.body.receiverId, message: request.body.message })
+			databaseQuerry(addMessage, { senderId: request.user.userId, receiverId: request.body.receiverId, message: request.body.message });
 		})
+		.then(() => response.sendStatus(200))
 		.then(() => logger.log('Send message success!'))
 		.catch(err => errorHanlder(err.message, response));
+});
+
+app.put('/editmessage', hasPerms(perms.EDIT_MESSAGES), (request, response) => {
+	logger.log('Editmessage');
+	if (!request.body?.messageId) {
+		return errorHanlder('No id to edit!', response);
+	} else if (!request.body.newMessage && !request.body.newReceiverId) {
+		return errorHanlder('No data to edit!', response);
+	}
+
+	const sqlGetMessage = 'SELECT senderId, receiverId, message FROM messages WHERE messageId = ?';
+	databaseQuerry(sqlGetMessage, request.body.messageId)
+		.then(message => {
+			if (message.length === 0) {
+				throw new Error('No message with this id!');
+			}
+			message = message[0];
+			if (message.senderId !== request.user.userId) {
+				throw new Error('You cant edit this message!');
+			}
+			if (message.receiverId === request.body.newReceiverId && message.message === request.body.newMessage) {
+				throw new Error('Edit is not usefull!');
+			}
+			const updateData = { edited: true };
+			if (request.body.newReceiverId) {
+				updateData.receiverId = request.body.newReceiverId;
+			}
+			if (request.body.newMessage) {
+				updateData.message = request.body.newMessage;
+			}
+
+			const sqlUpdateMessage = 'UPDATE messages SET ? WHERE messageId = ?';
+			databaseQuerry(sqlUpdateMessage, [updateData, request.body.messageId]);
+		})
+		.then(() => response.sendStatus(200))
+		.then(() => logger.log('Edit message success!'))
+		.catch(err => errorHanlder(err.message, response));
+});
+
+app.get('/getmymessages', (request, response) => {
+	logger.log('Getmymessages');
+
+	const sqlGetMessages = 'SELECT * FROM messages WHERE receiverId = ?';
+	databaseQuerry(sqlGetMessages, request.user.userId)
+		.then(messages => response.status(200).send(messages))
+		.then(() => {
+			const sqlDeleteMessage = 'DELETE FROM messages WHERE receiverId = ?';
+			databaseQuerry(sqlDeleteMessage, request.user.userId);
+		})
+		.catch(() => errorHanlder('Error while getting messages!', response));
+});
+
+app.get('/getsendedmessages', (request, response) => {
+	logger.log('Getsendedmessages');
+
+	const sqlGetMessages = 'SELECT * FROM messages WHERE senderId = ?';
+	databaseQuerry(sqlGetMessages, request.user.userId)
+		.then(messages => response.status(200).send(messages))
+		.catch(() => errorHanlder('Error while getting messages!', response));
 });
 
 function addDocument(request, response) {
@@ -529,8 +449,6 @@ function addDocument(request, response) {
 			if (data.length >= getPermsToCheck(request.user.permissions).find(perm => perm.id === perms[`ADD_${type.toUpperCase()}S`].id)?.value) {
 				throw new Error(`Too much ${type}s on this entity!`);
 			}
-		})
-		.then(() => {
 			const sqlCreateDocument = 'INSERT INTO documents SET ?';
 			databaseQuerry(sqlCreateDocument, { type, name: request.file.filename, entityId: request.body.entityId });
 		})
@@ -587,53 +505,6 @@ const errorHanlder = (err, response = undefined, status = 500) => {
 	}
 };
 
-function checkAuth(request, response, next) {
-	logger.log(`${request.ip} try to connect!`);
-	if (['/', '/info', '/register'].includes(request.url)) {
-		return next();
-	}
-
-	logger.log('Check Auth of', request.headers.authorization);
-	if (!request.headers.authorization) {
-		return errorHanlder(`Authentication required for ${request.url}!`, response, 400);
-	}
-
-	const b64auth = request.headers.authorization.split(' ')[1];
-	// eslint-disable-next-line
-	const [username, password] = Buffer.from(b64auth, 'base64').toString().split(':');
-	if (!username || !password) {
-		return errorHanlder('Username or password is missing!', response, 400);
-	}
-
-	checkAuthOf(username, password, request, response, next);
-}
-
-const checkAuthOf = async (username, password, request, response, next) => {
-	let user = getCachedUsers().find(user => user.username === username);
-	const isCached = !user;
-	if (isCached) {
-		const sql = 'SELECT * FROM users WHERE username like ?';
-		const data = await databaseQuerry(sql, username)
-			.catch(() => errorHanlder('Unknown error!', response));
-		if (data.length !== 1) {
-			return errorHanlder('Username or password is wrong!', response, 401);
-		}
-		user = data[0];
-	}
-
-	bcrypt.compare(password, user.password)
-		.then(isSame => {
-			if (!isSame) {
-				return errorHanlder('Correct username or password!', response, 400);
-			}
-			isCached ? addCachedUser(user) : resetCacheTimeOf(user);
-			request.user = prepareUserToSend(user);
-			logger.log(isCached ? 'Auth success' : 'Cached auth success', request.user);
-			next();
-		})
-		.catch(err => errorHanlder(err, response));
-};
-
 function hasPerms(...perms) {
 	return function (request, response, next) {
 		logger.log('Check that', request.user, 'has', perms);
@@ -675,9 +546,6 @@ const getDefaultPermissions = () => {
 		return perm.value ? perm : perm.id;
 	});
 };
-
-const getAllowedEntityProperties = () =>
-	['title', 'comment', 'description', 'rating', 'categoryId', 'price', 'brand', 'percentage', 'contentVolume', 'documentIds'];
 
 const getAllowedCategoryProperties = () => ['parentCategoryId', 'title'];
 

@@ -2,13 +2,13 @@
 	"name": "mysqlserver",
 	"version": "1.0.0",
 	"description": "",
-	"main": "app.js",
+	"main": "./server/app.js",
 	"scripts": {
 		"dev": "nodemon -- --dev",
-		"prod": "node app.js",
+		"prod": "node ./server/app.js",
 		"killPort": "sudo kill -9 $(sudo lsof -t -i:3000)",
 		"clearLogs": "rm -r ./logs",
-		"lint": " npx eslint *.js"
+		"lint": "npx eslint ."
 	},
 	"keywords": [],
 	"author": "Zokki",

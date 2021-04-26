@@ -1,7 +1,5 @@
-const Logger = require('./logger');
-const _ = require('lodash');
-
-const logger = new Logger('Users');
+const util = require('../util');
+const { getAllowedUserProperties } = require('./users');
 
 const functions = {};
 
@@ -9,7 +7,7 @@ const cachedUsers = [];
 
 functions.addCachedUser = (user) => {
 	if (!user) {
-		return logger.error('addCachedUser - no user', user);
+		throw new Error('addCachedUser - no user');
 	}
 	functions.resetCacheTimeOf(user);
 	cachedUsers.push(user);
@@ -17,51 +15,36 @@ functions.addCachedUser = (user) => {
 
 functions.deleteCachedUser = (username) => {
 	if (!username) {
-		return logger.error('deleteCachedUser - no user', username);
+		throw new Error('deleteCachedUser - no user');
 	}
 	const index = cachedUsers.findIndex(u => u.username === username);
 	if (index === -1) {
-		return logger.error('No user found for', username);
+		throw new Error('No user found for' + username);
 	}
 	cachedUsers.splice(index, 1);
 };
 
 functions.updateCachedUser = (oldUsername, newUserData) => {
 	if (!oldUsername || !newUserData) {
-		return logger.error('updateCachedUser - missing input', oldUsername, newUserData);
+		throw new Error(`updateCachedUser - missing input - ${oldUsername}, ${newUserData}`);
 	}
 	const user = cachedUsers.find(user => user.username === oldUsername);
 
-	for (const key in newUserData) {
-		if (!functions.getAllowedProperties().includes(key)) {
-			logger.warn('Too much data -', key);
-			continue;
-		}
+	for (const key in util.deleteNotAllowedProperties(getAllowedUserProperties(), newUserData)) {
 		user[key] = newUserData[key];
 	}
+
 	functions.resetCacheTimeOf(user);
 };
 
 functions.resetCacheTimeOf = (user) => {
 	if (!user) {
-		return logger.error('resetCacheTimeOf - no user', user);
+		throw new Error('resetCacheTimeOf - no user - ' + user);
 	}
 	user.cachedTime = Date.now();
 };
 
 functions.getCachedUsers = () => cachedUsers;
-
-functions.prepareUserToSend = (user) => {
-	if (!user) {
-		return logger.error('prepareUserToSend - no user', user);
-	}
-	user = _.merge({}, user, { permissions: user.permissions });
-	delete user.password;
-	delete user.cachedTime;
-	return user;
-};
-
-functions.getAllowedProperties = () => ['username', 'password', 'permissions', 'favorites', 'shoppingList'];
 
 setInterval(() => {
 	const currentTime = Date.now();

@@ -3,7 +3,7 @@ const mysql = require('mysql');
 
 const functions = {};
 const logger = new Logger('Database');
-const db = mysql.createConnection(require('./private_files/sqlConfigs.json'));
+const db = mysql.createConnection(require('../private_files/sqlConfigs.json'));
 
 db.connect(err => {
 	if (err) {
