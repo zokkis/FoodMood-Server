@@ -1,0 +1,25 @@
+{
+	"compilerOptions": {
+		/* Visit https://aka.ms/tsconfig.json to read more about this file */
+		"target": "ESNEXT",
+		"module": "commonjs",
+		"lib": [
+			"ESNEXT"
+		],
+		"allowJs": false,
+		"removeComments": true,
+		"strict": true,
+		"alwaysStrict": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noImplicitReturns": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true, // foŕ json import
+		"typeRoots": [
+			"@types",
+			"./node_modules/@types"
+		]
+	}
+}
