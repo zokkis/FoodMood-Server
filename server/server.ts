@@ -8,6 +8,8 @@ import { changePassword, changeUsername, deleteUser, login, logout, register } f
 import { hasPerms } from './utils/permissions';
 import { checkAuth } from './utils/auth';
 import server from '../package.json';
+import { getAllFoods, getFoodById, addFood, changeFood, deleteFood } from './routes/food';
+import { CERT_PEM, KEY_PEM } from './utils/constans';
 
 program
 	.addOption(new Option('-d, --dev', 'run in dev').default(false))
@@ -17,17 +19,17 @@ const options = program.opts();
 const logger = new Logger('Server');
 const app = express();
 
-app.use(cors());
-app.use(express.json());
-app.use(checkAuth);
+https.createServer({
+	key: fs.readFileSync(KEY_PEM),
+	cert: fs.readFileSync(CERT_PEM)
+}, app)
+	.listen(3000, () => logger.log('Server started!'));
 
 app.disable('x-powered-by');
 
-https.createServer({
-	key: fs.readFileSync('./private_files/private.pem'),
-	cert: fs.readFileSync('./private_files/cert.pem')
-}, app)
-	.listen(3000, () => logger.log('Server started!'));
+app.use(cors());
+app.use(express.json());
+app.use(checkAuth);
 
 app.get('/', (request, response) => {
 	logger.log('Root', request.ip);
@@ -51,4 +53,14 @@ app.put('/changeusername', hasPerms('EDIT_USERNAME'), changeUsername);
 app.delete('/logout', logout);
 
 app.delete('/user', deleteUser);
+
+app.get('/food', hasPerms('VIEW_FOOD'), getAllFoods);
+
+app.get('/food/:id', hasPerms('VIEW_FOOD'), getFoodById);
+
+app.post('/food', hasPerms('ADD_FOOD'), addFood);
+
+app.put('/food/:id', hasPerms('CHANGE_FOOD'), changeFood);
+
+app.delete('/food/:id', hasPerms('DELETE_FOOD'), deleteFood);
 

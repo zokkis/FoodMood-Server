@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { User } from '../models/user';
+import { LightUser, User } from '../models/user';
 import { databaseQuerry } from '../utils/database';
 import Logger from '../utils/logger';
 import { errorHandler } from '../utils/util';
@@ -18,7 +18,7 @@ export const register = (request: Request, response: Response): void => {
 	bcrypt.hash(request.body.password, 10)
 		.then(salt => {
 			const sqlRegisterUser = 'INSERT INTO users SET ?';
-			return databaseQuerry(sqlRegisterUser, { ...User.getDefaultUser({ ...request.body, password: salt }) });
+			return databaseQuerry(sqlRegisterUser, LightUser.getDBUser({ ...request.body, password: salt }));
 		})
 		.then((user: OkPacket) => response.status(200).send({ userId: user.insertId }))
 		.then(() => logger.log('Register success!'))

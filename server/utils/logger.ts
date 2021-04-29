@@ -1,11 +1,11 @@
 import fs from 'fs';
+import { LOG_PATH } from './constans';
+import { mkdirIfNotExist } from './fileAndFolder';
 
-if (!fs.existsSync('./logs')) {
-	fs.mkdirSync('./logs');
-}
-const logStream = fs.createWriteStream('./logs/logs.log', { flags: 'a' });
-const warnStream = fs.createWriteStream('./logs/warns.log', { flags: 'a' });
-const errorStream = fs.createWriteStream('./logs/erros.log', { flags: 'a' });
+mkdirIfNotExist(LOG_PATH);
+const logStream = fs.createWriteStream(LOG_PATH + '/logs.log', { flags: 'a' });
+const warnStream = fs.createWriteStream(LOG_PATH + '/warns.log', { flags: 'a' });
+const errorStream = fs.createWriteStream(LOG_PATH + '/erros.log', { flags: 'a' });
 
 export default class Logger {
 	constructor(public prefix: string) {

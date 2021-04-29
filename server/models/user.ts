@@ -1,6 +1,15 @@
 import { Permission } from './permission';
 import { ShoppingList } from './shoppingList';
 
+export interface IDBUser {
+	userId: number;
+	username: string;
+	password: string;
+	permissions: string;
+	favorites?: string;
+	shoppingList?: string;
+}
+
 export interface ILightUser {
 	userId: number;
 	username: string;
@@ -55,9 +64,21 @@ export class LightUser implements ILightUser {
 		return new LightUser(
 			user.userId,
 			user.username,
-			user.permissions,
-			user.favorites,
-			user.shoppingList
+			typeof user?.permissions === 'string' ? JSON.parse(user.permissions) : user?.permissions || { hasDefault: true },
+			typeof user?.favorites === 'string' ? JSON.parse(user.favorites) : user?.favorites,
+			typeof user?.shoppingList === 'string' ? JSON.parse(user.shoppingList) : user?.shoppingList
 		);
+	}
+
+	public static getDBUser(user: User | IUser): IDBUser {
+		const lightUser = this.fromUser(user);
+		return {
+			userId: lightUser.userId,
+			username: lightUser.username,
+			password: user.password,
+			permissions: JSON.stringify(lightUser.permissions),
+			favorites: JSON.stringify(lightUser.favorites),
+			shoppingList: JSON.stringify(lightUser.shoppingList)
+		};
 	}
 }
