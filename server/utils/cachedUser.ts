@@ -1,3 +1,5 @@
+import { Permission } from '../models/permission';
+import { ShoppingList } from '../models/shoppingList';
 import { User } from '../models/user';
 
 const cachedUsers: User[] = [];
@@ -30,6 +32,17 @@ export const updateCachedUser = (oldUsername: string | undefined, newUser: User)
 	addCachedUser(newUser);
 };
 
+export const updateCachedUsersPropety = (username: string | undefined, prop: keyof User, newValue: number | string | number[] | Permission | ShoppingList[]): void => {
+	if (!username || !prop || !newValue) {
+		throw new Error(`updateCachedUser - missing input - ${username}, ${prop}, ${newValue}`);
+	}
+
+	const user = getCachedUserByName(username);
+	// eslint-disable-next-line
+	(user as any)[prop] = newValue;
+	updateCachedUser(username, user as User);
+};
+
 export const setNewCacheTime = (user: User): void => {
 	if (!user) {
 		throw new Error('resetCacheTimeOf - no user - ' + user);
@@ -38,6 +51,10 @@ export const setNewCacheTime = (user: User): void => {
 };
 
 export const getCachedUsers = (): User[] => cachedUsers;
+
+export const getCachedUserByName = (name: string | undefined): User | undefined => {
+	return getCachedUsers().find(user => user.username === name);
+};
 
 setInterval(() => {
 	const currentTime = Date.now();

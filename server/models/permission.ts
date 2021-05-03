@@ -9,13 +9,13 @@ export interface PermissionDetails {
 	isDefault?: boolean;
 }
 
-export type PermissionNamesType = 'VIEW_FOOD' | 'ADD_FOOD' | 'CHANGE_FOOD' | 'DELETE_FOOD' | 'EDIT_PASSWORD' | 'EDIT_USERNAME' | 'VIEW_USERS' | 'VIEW_USERS_FAVORITES' | 'SEND_MESSAGES' | 'EDIT_MESSAGES' | 'DELETE_MESSAGES' | 'CREATE_CATEGORY' | 'EDIT_CATEGORY' | 'DELETE_CATEGORY_LAST_CHILD' | 'DELETE_CATEGORY_WITH_CHILD' | 'DELETE_CATEGORY_MAIN' | 'VIEW_IMAGES' | 'VIEW_VIDEOS' | 'DELETE_IMAGES' | 'DELETE_VIDEOS' | 'ADD_IMAGES' | 'ADD_VIDEOS' | 'ADMIN';
+export type PermissionNamesType = 'VIEW_FOOD' | 'ADD_FOOD' | 'CHANGE_FOOD' | 'DELETE_FOOD' | 'EDIT_PASSWORD' | 'EDIT_USERNAME' | 'VIEW_USERS' | 'VIEW_USERS_FAVORITES' | 'SEND_MESSAGES' | 'EDIT_MESSAGES' | 'DELETE_MESSAGES' | 'VIEW_CATEGORIES' | 'CREATE_CATEGORY' | 'EDIT_CATEGORY' | 'DELETE_CATEGORY_LAST_CHILD' | 'DELETE_CATEGORY_WITH_CHILD' | 'DELETE_CATEGORY_MAIN' | 'VIEW_IMAGES' | 'VIEW_VIDEOS' | 'DELETE_IMAGES' | 'DELETE_VIDEOS' | 'ADD_IMAGES' | 'ADD_VIDEOS' | 'ADMIN';
 
 //export const PermissionNames = ['VIEW_FOOD', 'ADD_FOOD', 'CHANGE_FOOD', 'DELETE_FOOD', 'EDIT_PASSWORD', 'EDIT_USERNAME', 'VIEW_USERS', 'VIEW_USERS_FAVORITES', 'SEND_MESSAGES', 'EDIT_MESSAGES', 'DELETE_MESSAGES', 'CREATE_CATEGORY', 'EDIT_CATEGORY', 'DELETE_CATEGORY_LAST_CHILD', 'DELETE_CATEGORY_WITH_CHILD', 'DELETE_CATEGORY_MAIN', 'VIEW_IMAGES', 'VIEW_VIDEOS', 'DELETE_IMAGES', 'DELETE_VIDEOS', 'ADD_IMAGES', 'ADD_VIDEOS', 'ADMIN'] as const;
 
 //export type PermissionNamesType = typeof PermissionNames[number];
 
-type Permissions = { [name in PermissionNamesType]: PermissionDetails };
+export type Permissions = { [name in PermissionNamesType]: PermissionDetails };
 
 export const PermissionsMap: Permissions = {
 	VIEW_FOOD: {
@@ -56,34 +56,37 @@ export const PermissionsMap: Permissions = {
 	DELETE_MESSAGES: {
 		id: 1100
 	},
-	CREATE_CATEGORY: {
+	VIEW_CATEGORIES: {
 		id: 1200
 	},
-	EDIT_CATEGORY: {
+	CREATE_CATEGORY: {
 		id: 1300
 	},
-	DELETE_CATEGORY_LAST_CHILD: {
+	EDIT_CATEGORY: {
 		id: 1400
 	},
-	DELETE_CATEGORY_WITH_CHILD: {
+	DELETE_CATEGORY_LAST_CHILD: {
 		id: 1500
 	},
-	DELETE_CATEGORY_MAIN: {
+	DELETE_CATEGORY_WITH_CHILD: {
 		id: 1600
 	},
-	VIEW_IMAGES: {
-		id: 1700,
-		isDefault: true
+	DELETE_CATEGORY_MAIN: {
+		id: 1700
 	},
-	VIEW_VIDEOS: {
+	VIEW_IMAGES: {
 		id: 1800,
 		isDefault: true
 	},
+	VIEW_VIDEOS: {
+		id: 1900,
+		isDefault: true
+	},
 	DELETE_IMAGES: {
-		id: 1900
+		id: 2000
 	},
 	DELETE_VIDEOS: {
-		id: 2000
+		id: 2100
 	},
 	ADD_IMAGES: {
 		id: 15000,

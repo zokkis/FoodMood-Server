@@ -15,7 +15,7 @@ export interface ILightUser {
 	username: string;
 	permissions: Permission;
 	favorites?: number[];
-	shoppingList?: ShoppingList;
+	shoppingList?: ShoppingList[];
 }
 
 export interface IUser extends ILightUser {
@@ -30,8 +30,8 @@ export class User implements IUser {
 		public username: string,
 		public password: string,
 		public permissions: Permission,
-		public favorites?: number[],
-		public shoppingList?: ShoppingList,
+		public favorites: number[],
+		public shoppingList: ShoppingList[],
 		public lastEdit?: string,
 		public cachedTime?: number) {
 	}
@@ -43,8 +43,8 @@ export class User implements IUser {
 			user?.username || '',
 			user?.password || '',
 			typeof user?.permissions === 'string' ? JSON.parse(user.permissions) : user?.permissions || { hasDefault: true },
-			typeof user?.favorites === 'string' ? JSON.parse(user.favorites) : user?.favorites,
-			typeof user?.shoppingList === 'string' ? JSON.parse(user.shoppingList) : user?.shoppingList,
+			typeof user?.favorites === 'string' ? JSON.parse(user.favorites) : user?.favorites || [],
+			typeof user?.shoppingList === 'string' ? JSON.parse(user.shoppingList) : user?.shoppingList || [],
 			user?.lastEdit,
 			user?.cachedTime
 		);
@@ -56,8 +56,8 @@ export class LightUser implements ILightUser {
 		public userId: number,
 		public username: string,
 		public permissions: Permission,
-		public favorites?: number[],
-		public shoppingList?: ShoppingList) {
+		public favorites: number[],
+		public shoppingList: ShoppingList[]) {
 	}
 
 	public static fromUser(user: User | IUser): LightUser {
@@ -65,8 +65,8 @@ export class LightUser implements ILightUser {
 			user.userId,
 			user.username,
 			typeof user?.permissions === 'string' ? JSON.parse(user.permissions) : user?.permissions || { hasDefault: true },
-			typeof user?.favorites === 'string' ? JSON.parse(user.favorites) : user?.favorites,
-			typeof user?.shoppingList === 'string' ? JSON.parse(user.shoppingList) : user?.shoppingList
+			typeof user?.favorites === 'string' ? JSON.parse(user.favorites) : user?.favorites || [],
+			typeof user?.shoppingList === 'string' ? JSON.parse(user.shoppingList) : user?.shoppingList || []
 		);
 	}
 
@@ -76,9 +76,9 @@ export class LightUser implements ILightUser {
 			userId: lightUser.userId,
 			username: lightUser.username,
 			password: user.password,
-			permissions: JSON.stringify(lightUser.permissions),
-			favorites: JSON.stringify(lightUser.favorites),
-			shoppingList: JSON.stringify(lightUser.shoppingList)
+			permissions: JSON.stringify(lightUser.permissions || []),
+			favorites: JSON.stringify(lightUser.favorites || []),
+			shoppingList: JSON.stringify(lightUser.shoppingList || [])
 		};
 	}
 }

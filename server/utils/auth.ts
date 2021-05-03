@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction, request } from 'express';
 import { User, LightUser } from '../models/user';
-import { getUserFromDB } from '../routes/user';
+import { getUserFromDB } from '../utils/database';
 import { getCachedUsers, addCachedUser, setNewCacheTime } from './cachedUser';
 import Logger from './logger';
 import { errorHandler } from './util';
@@ -34,14 +34,8 @@ const checkAuthOf = async (username: string, password: string, response: Respons
 
 	try {
 		user = getCachedUsers().find(user => user.username === username) || await getUserFromDB(username);
-		if (typeof user.permissions === 'string') {
-			user.permissions = JSON.parse(user.permissions);
-		}
-		if (typeof user.favorites === 'string') {
-			user.permissions = JSON.parse(user.favorites);
-		}
-		if (typeof user.shoppingList === 'string') {
-			user.permissions = JSON.parse(user.shoppingList);
+		if (!user) {
+			return errorHandler('Username or password is wrong!', response);
 		}
 	} catch (err) {
 		return errorHandler(err, response);
@@ -53,7 +47,7 @@ const checkAuthOf = async (username: string, password: string, response: Respons
 				throw new Error('Username or password is wrong!');
 			}
 			const isNew = !user.cachedTime;
-			isNew ? addCachedUser(user) : setNewCacheTime(user);
+			isNew ? addCachedUser(User.getDefaultUser(user)) : setNewCacheTime(user);
 			logger.log(isNew ? 'Auth success' : 'Cached auth success');
 			request.user = LightUser.fromUser(user);
 			next();

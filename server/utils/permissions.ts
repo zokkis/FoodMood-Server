@@ -6,7 +6,7 @@ import { errorHandler } from './util';
 const logger = new Logger('Permissions');
 
 export const hasPerms = (...perms: PermissionNamesType[]): (request: Request, response: Response, next: NextFunction) => void => {
-	return (request: Request, response: Response, next: NextFunction) => {
+	return (request: Request, response: Response, next: NextFunction): void => {
 		logger.log('Check that', request.user?.username, 'has', perms);
 
 		if (request.user?.permissions && !containsAllPerms(request.user.permissions, perms)) {
@@ -17,19 +17,14 @@ export const hasPerms = (...perms: PermissionNamesType[]): (request: Request, re
 	};
 };
 
-const containsAllPerms = (userPerm: Permission, mustHave: PermissionNamesType[]) => {
-	const permsToCheck: number[] = [];
-	if (userPerm.permissions) {
-		if (userPerm.permissions.indexOf(getPermissionDetailsOfType('ADMIN').id) !== -1) {
-			return true;
-		}
-		permsToCheck.push(...userPerm.permissions);
-	}
-	if (userPerm.hasDefault) {
-		permsToCheck.push(...getDefaultPermissionDetails().map(permDetail => permDetail.id));
-	}
+const containsAllPerms = (userPerm: Permission, mustHave: PermissionNamesType[]): boolean => {
+	const permsToCheck: number[] = getPermissionIdsToCheck(userPerm);
+
 	if (permsToCheck.length === 0) {
 		return false;
+	}
+	if (permsToCheck.indexOf(getPermissionDetailsOfType('ADMIN').id) !== -1) {
+		return true;
 	}
 
 	for (const needed of getPermissionDetailsOfTypes(mustHave).map(permDetail => permDetail.id)) {
@@ -41,22 +36,33 @@ const containsAllPerms = (userPerm: Permission, mustHave: PermissionNamesType[])
 	return true;
 };
 
-const getDefaultPermissionDetails = () => {
+const getDefaultPermissionDetails = (): PermissionDetails[] => {
 	return getAllPermissionDetails().filter(permDetail => permDetail.isDefault);
 };
 
-const getAllPermissionDetails = () => {
+const getAllPermissionDetails = (): PermissionDetails[] => {
 	const perms: PermissionDetails[] = [];
 	for (const name in PermissionsMap) {
-		perms.push(PermissionsMap[name as PermissionNamesType]);
+		perms.push(getPermissionDetailsOfType(name as PermissionNamesType));
 	}
 	return perms;
 };
 
-const getPermissionDetailsOfTypes = (type: PermissionNamesType[]) => {
-	return type.map(t => PermissionsMap[t]);
+const getPermissionDetailsOfTypes = (type: PermissionNamesType[]): PermissionDetails[] => {
+	return type.map(t => getPermissionDetailsOfType(t));
 };
 
-const getPermissionDetailsOfType = (type: PermissionNamesType) => {
+export const getPermissionDetailsOfType = (type: PermissionNamesType): PermissionDetails => {
 	return PermissionsMap[type];
+};
+
+export const getPermissionIdsToCheck = (permission: Permission | undefined): number[] => {
+	const permsToCheck: number[] = [];
+	if (permission?.permissions) {
+		permsToCheck.push(...permission.permissions);
+	}
+	if (permission?.hasDefault) {
+		permsToCheck.push(...getDefaultPermissionDetails().map(permDetail => permDetail.id));
+	}
+	return permsToCheck;
 };

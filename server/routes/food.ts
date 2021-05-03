@@ -1,37 +1,35 @@
 import { Request, Response } from 'express';
 import { OkPacket } from 'mysql';
 import { Food } from '../models/food';
-import { databaseQuerry, getEntityWithId, isValideSQLTimestamp } from '../utils/database';
+import { DOCUMENT_PATH } from '../utils/constans';
+import { databaseQuerry, getEntitiesWithId, isValideSQLTimestamp } from '../utils/database';
+import { deletePath } from '../utils/fileAndFolder';
 import Logger from '../utils/logger';
 import { errorHandler } from '../utils/util';
 
 const logger = new Logger('Food');
 
 export const getAllFoods = (request: Request, response: Response): void => {
-	logger.log('Getfoods');
-
 	let sqlGetFoods = 'SELECT * FROM entity';
 	sqlGetFoods += isValideSQLTimestamp(request.query.lastEdit as string) ? ' WHERE lastEdit >= ?' : '';
 	databaseQuerry(sqlGetFoods, request.query.lastEdit)
-		.then(data => response.status(200).send(data))
+		.then((data: Food[]) => response.status(200).send(data))
 		.then(() => logger.log('Getfoods success!'))
 		.catch(err => errorHandler(err, response));
 };
 
 export const getFoodById = (request: Request, response: Response): void => {
-	logger.log('Getfood');
 	if (!request.params.id) {
 		return errorHandler('No id!', response);
 	}
 
-	getEntityWithId(request.params.id)
-		.then(data => response.status(200).send(data))
+	getEntitiesWithId(request.params.id)
+		.then((data: Food[]) => response.status(200).send(data))
 		.then(() => logger.log('Getfoods success!'))
 		.catch(err => errorHandler(err, response));
 };
 
 export const addFood = (request: Request, response: Response): void => {
-	logger.log('Addfood');
 	if (!request.body.title || !request.body.categoryId) {
 		return errorHandler('Missing data!', response);
 	}
@@ -46,7 +44,6 @@ export const addFood = (request: Request, response: Response): void => {
 };
 
 export const changeFood = (request: Request, response: Response): void => {
-	logger.log('Changefood');
 	if (!request.params.id) {
 		return errorHandler('No id to change!', response);
 	} else if (Object.keys(request.body || {}).length === 0) {
@@ -54,14 +51,14 @@ export const changeFood = (request: Request, response: Response): void => {
 	}
 
 	const entityId = request.params.id;
-	getEntityWithId(entityId)
+	getEntitiesWithId(entityId)
 		.then((entity: Food[]) => {
 			if (entity.length === 0) {
 				throw new Error('No food to change!');
 			}
 			return entity[0];
 		})
-		.then(entity => {
+		.then((entity: Food) => {
 			const newFood = Food.getDBFood({ ...entity, ...request.body });
 
 			const sqlChangeFood = 'UPDATE entity SET ? WHERE entityId = ?';
@@ -73,14 +70,13 @@ export const changeFood = (request: Request, response: Response): void => {
 };
 
 export const deleteFood = (request: Request, response: Response): void => {
-	logger.log('Deletefood');
 	if (!request.params?.id) {
 		return errorHandler('No id to delete!', response);
 	}
 
 	const sqlDeleteFood = 'DELETE FROM entity WHERE entityId = ?';
 	databaseQuerry(sqlDeleteFood, request.params.id)
-		//.then(() => util.deletePath(`./documents/${request.params.id}/`)) //@TODO delete documents
+		.then(() => deletePath(`${DOCUMENT_PATH}/${request.params.id}/`))
 		.then(() => response.sendStatus(200))
 		.then(() => logger.log('Delete success!'))
 		.catch(err => errorHandler(err, response));
