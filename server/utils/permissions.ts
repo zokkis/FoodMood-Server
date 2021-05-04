@@ -1,16 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 import { Permission, PermissionDetails, PermissionNamesType, PermissionsMap } from '../models/permission';
 import Logger from './logger';
-import { errorHandler } from './util';
+import { errorHandler } from './error';
 
 const logger = new Logger('Permissions');
 
 export const hasPerms = (...perms: PermissionNamesType[]): (request: Request, response: Response, next: NextFunction) => void => {
 	return (request: Request, response: Response, next: NextFunction): void => {
-		logger.log('Check that', request.user?.username, 'has', perms);
+		logger.log('Check that', request.user.username, 'has', perms);
 
-		if (request.user?.permissions && !containsAllPerms(request.user.permissions, perms)) {
-			return errorHandler('No permissions for this action!', response, 403);
+		if (request.user.permissions && !containsAllPerms(request.user.permissions, perms)) {
+			return errorHandler(response, 403);
 		}
 		logger.log('Permcheck success');
 		next();
@@ -56,7 +56,7 @@ export const getPermissionDetailsOfType = (type: PermissionNamesType): Permissio
 	return PermissionsMap[type];
 };
 
-export const getPermissionIdsToCheck = (permission: Permission | undefined): number[] => {
+export const getPermissionIdsToCheck = (permission: Permission): number[] => {
 	const permsToCheck: number[] = [];
 	if (permission?.permissions) {
 		permsToCheck.push(...permission.permissions);

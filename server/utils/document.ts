@@ -29,10 +29,10 @@ export const checkFileAndMimetype = (mimetype: string) => {
 		} else if (!file.mimetype.includes(mimetype)) {
 			request.fileValidateError = `Must be ${mimetype}!`;
 			return callback(null, false);
-		} else if (!request.body?.entityId) {
+		} else if (!request.body.entityId) {
 			request.fileValidateError = 'No entityId to save!';
 			return callback(null, false);
-		} else if ((await getEntitiesWithId(request.body.entityId)).length === 0) {
+		} else if ((await getEntitiesWithId(request.body.entityId)).length !== 1) {
 			request.fileValidateError = 'No entity for this id!';
 			return callback(null, false);
 		}

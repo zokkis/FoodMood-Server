@@ -1,29 +1,23 @@
 import { Request, Response, NextFunction, request } from 'express';
 import { User, LightUser } from '../models/user';
-import { getUserFromDB } from '../utils/database';
-import { getCachedUsers, addCachedUser, setNewCacheTime } from './cachedUser';
+import { getUserByUsername } from '../utils/database';
+import { addCachedUser, setNewCacheTime } from './cachedUser';
 import Logger from './logger';
-import { errorHandler } from './util';
+import { errorHandler, RequestError } from './error';
 import bcrypt from 'bcrypt';
 
 const logger = new Logger('Auth');
 
 export const checkAuth = (request: Request, response: Response, next: NextFunction): void => {
-	logger.log(`${request.ip} try to connect!`);
-	if (['/', '/info', '/register'].includes(request.url)) {
-		return next();
-	}
-
-	logger.log('Check Auth of', request.headers.authorization);
+	logger.log(`${request.ip} try to connect with ${request.headers.authorization}!`);
 	if (!request.headers.authorization) {
-		return errorHandler(`Authentication required for ${request.url}!`, response, 400);
+		return errorHandler(response, 401);
 	}
 
 	const b64auth = request.headers.authorization.split(' ')[1];
-	// eslint-disable-next-line
 	const [username, password] = Buffer.from(b64auth, 'base64').toString().split(':');
 	if (!username || !password) {
-		return errorHandler('Username or password is missing!', response, 400);
+		return errorHandler(response, 401);
 	}
 
 	checkAuthOf(username, password, response, next);
@@ -32,25 +26,20 @@ export const checkAuth = (request: Request, response: Response, next: NextFuncti
 const checkAuthOf = async (username: string, password: string, response: Response, next: NextFunction) => {
 	let user: User;
 
-	try {
-		user = getCachedUsers().find(user => user.username === username) || await getUserFromDB(username);
-		if (!user) {
-			return errorHandler('Username or password is wrong!', response);
-		}
-	} catch (err) {
-		return errorHandler(err, response);
-	}
-
-	bcrypt.compare(password, user.password)
+	getUserByUsername(username)
+		.then((dbUser: User) => {
+			user = dbUser;
+			return bcrypt.compare(password, user.password);
+		})
 		.then(isSame => {
 			if (!isSame) {
-				throw new Error('Username or password is wrong!');
+				throw new RequestError(401);
 			}
 			const isNew = !user.cachedTime;
-			isNew ? addCachedUser(User.getDefaultUser(user)) : setNewCacheTime(user);
+			isNew ? addCachedUser(user) : setNewCacheTime(user);
 			logger.log(isNew ? 'Auth success' : 'Cached auth success');
 			request.user = LightUser.fromUser(user);
 			next();
 		})
-		.catch(err => errorHandler(err, response));
+		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };

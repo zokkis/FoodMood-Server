@@ -14,11 +14,11 @@ export class Category implements ICategory {
 	) {
 	}
 
-	public static getFromJson(json?: Category | ICategory): Category {
+	public static getFromJson(json: Category | ICategory): Category {
 		return new Category(
-			json?.categoryId || -1,
-			json?.title || '',
-			json?.parentCategoryId
+			json.categoryId,
+			json.title,
+			json.parentCategoryId
 		);
 	}
 }

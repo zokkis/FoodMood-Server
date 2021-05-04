@@ -3,6 +3,8 @@ import mysql from 'mysql';
 import sqlConfigs from '../../private_files/sqlConfigs.json';
 import { Food } from '../models/food';
 import { User } from '../models/user';
+import { getCachedUserById, getCachedUserByName } from './cachedUser';
+import { RequestError } from './error';
 
 const logger = new Logger('Database');
 const db = mysql.createConnection(sqlConfigs);
@@ -25,11 +27,27 @@ export const getEntitiesWithId = (id: number | string): Promise<Food[]> => {
 	return databaseQuerry(sqlGetFoods, id);
 };
 
-export const isValideSQLTimestamp = (stamp: string): boolean => {
+// eslint-disable-next-line
+export const isValideSQLTimestamp = (stamp: any): boolean => {
 	return typeof stamp === 'string' && /([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]) ([01]\d|2[0-3]):([0-5]\d):([0-5]\d))/.test(stamp);
 };
 
-export const getUserFromDB = async (username: string): Promise<User> => {
-	const sql = 'SELECT * FROM users WHERE username like ?';
-	return (await databaseQuerry(sql, username))[0];
+export const getUserByUsername = async (username: string, errorOnEmpty = true, errorOnFill = false): Promise<User> => {
+	return getCachedUserByName(username) || databaseQuerry('SELECT * FROM users WHERE username like ?', username)
+		.then((users: User[]) => {
+			if ((users.length === 0 && errorOnEmpty) || (users.length > 0 && errorOnFill)) {
+				throw new RequestError(400);
+			}
+			return User.getDefaultUser(users[0]);
+		});
+};
+
+export const getUserById = async (id: number): Promise<User> => {
+	return getCachedUserById(id) || databaseQuerry('SELECT * FROM users WHERE userId = ?', id)
+		.then((users: User[]) => {
+			if (users.length !== 1) {
+				throw new RequestError(400);
+			}
+			return User.getDefaultUser(users[0]);
+		});
 };

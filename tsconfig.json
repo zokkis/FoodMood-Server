@@ -16,7 +16,7 @@
 		"esModuleInterop": true,
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
-		"resolveJsonModule": true, // foŕ json import
+		"resolveJsonModule": true, // for json import
 		"typeRoots": [
 			"@types",
 			"./node_modules/@types"

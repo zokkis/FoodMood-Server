@@ -27,8 +27,7 @@ export class Food implements IFood {
 		public lastEdit?: string) {
 	}
 
-	// eslint-disable-next-line
-	public static getFromJson(json: any): Food {
+	public static getFromJson(json: Food | IFood): Food {
 		return new Food(
 			json.title,
 			json.categoryId,
@@ -43,8 +42,7 @@ export class Food implements IFood {
 		);
 	}
 
-	// eslint-disable-next-line
-	public static getDBFood(json: any): Food {
+	public static getDBFood(json: Food | IFood): Food {
 		const food = this.getFromJson(json);
 		delete food.entityId;
 		delete food.lastEdit;

@@ -5,77 +5,82 @@ import { databaseQuerry } from '../utils/database';
 import { deletePath } from '../utils/fileAndFolder';
 import Logger from '../utils/logger';
 import { getPermissionIdsToCheck, getPermissionDetailsOfType } from '../utils/permissions';
-import { errorHandler } from '../utils/util';
+import { errorHandler, RequestError } from '../utils/error';
+import { Document } from '../models/document';
+import { defaultHttpResponseMessages } from '../models/httpResponse';
+import { isPositiveSaveInteger } from '../utils/validator';
 
 const logger = new Logger('Document');
 
 export const addDocument = (request: Request, response: Response): void => {
 	const type = request.file?.type ?? 'document';
 
-	if (request.fileValidateError) {
+	if (request.fileValidateError || !isPositiveSaveInteger(request.body.entityId)) {
 		if (request.file?.path) { deletePath(request.file.path); }
-		return errorHandler(request.fileValidateError, response);
+		return errorHandler(response, 400, request.fileValidateError);
 	} else if (!request.file) {
-		return errorHandler(`No ${type} to save!`, response);
-	} else if (type === 'document') {
-		return errorHandler('Type cant be document!', response);
+		return errorHandler(response, 400);
+	} else if (!getPermissionDetailsOfType(`ADD_${type.toUpperCase()}S` as PermissionNamesType)?.value) {
+		return errorHandler(response, 500, `Error with type - ${type}`);
 	}
 
 	const sqlCheckEntitiyId = 'SELECT entityId FROM documents WHERE entityId = ? AND type = ?';
 	databaseQuerry(sqlCheckEntitiyId, [request.body.entityId, type])
-		.then(data => {
-			if (getPermissionIdsToCheck(request.user?.permissions).indexOf(getPermissionDetailsOfType('ADMIN').id) !== -1) {
-				return;
+		.then((data: Document[]) => {
+			if (data.length >= (getPermissionDetailsOfType(`ADD_${type.toUpperCase()}S` as PermissionNamesType).value || 0)
+				&& getPermissionIdsToCheck(request.user.permissions).indexOf(getPermissionDetailsOfType('ADMIN').id) === -1) {
+				throw new RequestError(403, `Too much ${type}s on this entity!`);
 			}
 
-			if (data.length >= (getPermissionDetailsOfType(`ADD_${type.toUpperCase()}S` as PermissionNamesType).value || 0)) {
-				throw new Error(`Too much ${type}s on this entity!`);
-			}
-		})
-		.then(() => {
 			const sqlCreateDocument = 'INSERT INTO documents SET ?';
-			databaseQuerry(sqlCreateDocument, { type, name: request.file.filename, entityId: request.body.entityId });
+			return databaseQuerry(sqlCreateDocument, { type, name: request.file.filename, entityId: request.body.entityId });
 		})
-		.then(() => response.sendStatus(200))
+		.then(() => response.status(201).send(defaultHttpResponseMessages.get(201)))
 		.then(() => logger.log(`Add${type} success`))
 		.catch(err => {
 			deletePath(request.file.path);
-			errorHandler(err.message, response);
+			errorHandler(response, err.statusCode || 500, err);
 		});
 };
 
-export const sendDocument = (request: Request, response: Response): void => {
-	if (!request.params?.id) {
-		return errorHandler('No id!', response);
+export const getDocument = (request: Request, response: Response): void => {
+	if (!isPositiveSaveInteger(request.params.id)) {
+		return errorHandler(response, 400);
 	}
 
 	const sqlGetImage = 'SELECT name, entityId FROM documents WHERE documentId = ?';
 	databaseQuerry(sqlGetImage, request.params.id)
-		.then(image => {
-			if (image.length !== 1) {
-				throw new Error('No document found!');
+		.then((images: Document[]) => {
+			if (images.length !== 1) {
+				throw new RequestError(400);
 			}
-			image = image[0];
+			const image = images[0];
 			response.status(200).sendFile(`${process.cwd()}/${DOCUMENT_PATH}/${image.entityId}/${image.name}`);
 		})
-		.catch(err => errorHandler(err, response));
+		.then(() => logger.log('Getdocument success!'))
+		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };
 
 export const deleteDocument = (request: Request, response: Response): void => {
-	if (!request.params?.id) {
-		return errorHandler('No id to delete!', response);
+	if (!isPositiveSaveInteger(request.params.id)) {
+		return errorHandler(response, 400);
 	}
 	let pathToDelete: string;
 
 	const sqlGetDocumentName = 'SELECT name, entityId FROM documents WHERE documentId = ?';
 	databaseQuerry(sqlGetDocumentName, request.params.id)
-		.then(data => pathToDelete = `${DOCUMENT_PATH}/${data[0].entityId}/${data[0].name}`)
+		.then((data: Document[]) => {
+			if (data.length !== 1) {
+				throw new RequestError(400);
+			}
+			pathToDelete = `${DOCUMENT_PATH}/${data[0].entityId}/${data[0].name}`;
+		})
 		.then(() => {
 			const sqlDeleteDocument = 'DELETE FROM documents WHERE documentId = ?';
 			return databaseQuerry(sqlDeleteDocument, request.params.id);
 		})
 		.then(() => deletePath(pathToDelete))
-		.then(() => response.sendStatus(200))
+		.then(() => response.status(202).send(defaultHttpResponseMessages.get(202)))
 		.then(() => logger.log('Document deleted!'))
-		.catch(err => errorHandler(err, response));
+		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };

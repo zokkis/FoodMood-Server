@@ -1,6 +1,6 @@
 declare namespace Express {
 	export interface Request {
-		user?: import('../../server/models/user').LightUser;
+		user: import('../../server/models/user').LightUser;
 		fileValidateError?: string;
 	}
 	namespace Multer {

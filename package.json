@@ -2,7 +2,7 @@
 	"name": "mysqlserver",
 	"version": "1.0.0",
 	"description": "",
-	"main": "./server/app.js",
+	"main": "./server/server.ts",
 	"scripts": {
 		"dev": "tsnd --respawn ./server/server.ts -- --dev",
 		"prod": "ts-node ./server/server.ts",

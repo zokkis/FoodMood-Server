@@ -37,9 +37,8 @@ export const updateCachedUsersPropety = (username: string | undefined, prop: key
 		throw new Error(`updateCachedUser - missing input - ${username}, ${prop}, ${newValue}`);
 	}
 
-	const user = getCachedUserByName(username);
-	// eslint-disable-next-line
-	(user as any)[prop] = newValue;
+	const user = getCachedUserByName(username) || User.getDefaultUser();
+	user[prop] = newValue as never; // @TEST
 	updateCachedUser(username, user as User);
 };
 
@@ -54,6 +53,10 @@ export const getCachedUsers = (): User[] => cachedUsers;
 
 export const getCachedUserByName = (name: string | undefined): User | undefined => {
 	return getCachedUsers().find(user => user.username === name);
+};
+
+export const getCachedUserById = (id: number | undefined): User | undefined => {
+	return getCachedUsers().find(user => user.userId === id);
 };
 
 setInterval(() => {
