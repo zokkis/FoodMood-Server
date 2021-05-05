@@ -15,6 +15,7 @@ import { checkFileAndMimetype, multerStorage } from './utils/document';
 import { addDocument, getDocument, deleteDocument } from './routes/document';
 import { addCategory, changeCategory, deleteCategory, getCategories } from './routes/category';
 import { getMessagesForMe, getOwnMessages, sendMessage, editMessage, deleteMessage } from './routes/message';
+import { checkFoodIds } from './routes/utils';
 
 const logger = new Logger('Server');
 const app = express();
@@ -105,7 +106,7 @@ app.put('/categories/:id', checkAuth, hasPerms('EDIT_CATEGORY'), changeCategory)
 
 app.delete('/categories/id:', checkAuth, deleteCategory);
 
-app.get('/mymessages', checkAuth, getOwnMessages);
+app.get('/mymessages', checkAuth, hasPerms('SEND_MESSAGES'), getOwnMessages);
 
 app.get('/messages', checkAuth, getMessagesForMe);
 
@@ -114,6 +115,8 @@ app.post('/messages', checkAuth, hasPerms('SEND_MESSAGES'), sendMessage);
 app.put('/messages/:id', checkAuth, hasPerms('EDIT_MESSAGES'), editMessage);
 
 app.delete('/messages/:id', checkAuth, hasPerms('DELETE_MESSAGES'), deleteMessage);
+
+app.post('/utils/foods', checkAuth, hasPerms('VIEW_FOOD'), checkFoodIds);
 
 app.all('*', (_request, response) => {
 	response.status(301).redirect('/');

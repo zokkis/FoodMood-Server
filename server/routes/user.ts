@@ -20,7 +20,7 @@ export const register = (request: Request, response: Response): void => {
 	getUserByUsername(request.body.username, false, true)
 		.then(() => bcrypt.hash(request.body.password, 10))
 		.then((salt: string) => databaseQuerry('INSERT INTO users SET ?', LightUser.getDBInsertUser({ username: request.body.username, password: salt })))
-		.then((user: OkPacket) => response.status(200).send({ userId: user.insertId }))
+		.then((user: OkPacket) => response.status(201).send({ userId: user.insertId }))
 		.then(() => logger.log('Register success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };
