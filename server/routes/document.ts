@@ -9,25 +9,27 @@ import { errorHandler, RequestError } from '../utils/error';
 import { Document } from '../models/document';
 import { defaultHttpResponseMessages } from '../models/httpResponse';
 import { isPositiveSaveInteger } from '../utils/validator';
+import { OkPacket } from 'mysql';
 
 const logger = new Logger('Document');
 
 export const addDocument = (request: Request, response: Response): void => {
 	const type = request.file?.type ?? 'document';
 
-	if (request.fileValidateError || !isPositiveSaveInteger(request.body.entityId)) {
+	if (request.fileValidateError || !isPositiveSaveInteger(request.body.entityId) || !request.file) {
 		if (request.file?.path) { deletePath(request.file.path); }
 		return errorHandler(response, 400, request.fileValidateError);
-	} else if (!request.file) {
-		return errorHandler(response, 400);
-	} else if (!getPermissionDetailsOfType(`ADD_${type.toUpperCase()}S` as PermissionNamesType)?.value) {
+	}
+
+	const permissionDetailsOfType = getPermissionDetailsOfType(`ADD_${type.toUpperCase()}S` as PermissionNamesType)?.value;
+	if (!permissionDetailsOfType) {
 		return errorHandler(response, 500, `Error with type - ${type}`);
 	}
 
 	const sqlCheckEntitiyId = 'SELECT entityId FROM documents WHERE entityId = ? AND type = ?';
 	databaseQuerry(sqlCheckEntitiyId, [request.body.entityId, type])
 		.then((data: Document[]) => {
-			if (data.length >= (getPermissionDetailsOfType(`ADD_${type.toUpperCase()}S` as PermissionNamesType).value || 0)
+			if (data.length >= permissionDetailsOfType
 				&& getPermissionIdsToCheck(request.user.permissions).indexOf(getPermissionDetailsOfType('ADMIN').id) === -1) {
 				throw new RequestError(403, `Too much ${type}s on this entity!`);
 			}
@@ -35,7 +37,7 @@ export const addDocument = (request: Request, response: Response): void => {
 			const sqlCreateDocument = 'INSERT INTO documents SET ?';
 			return databaseQuerry(sqlCreateDocument, { type, name: request.file.filename, entityId: request.body.entityId });
 		})
-		.then(() => response.status(201).send(defaultHttpResponseMessages.get(201)))
+		.then((dbPacket: OkPacket) => response.status(201).send({ insertId: dbPacket.insertId }))
 		.then(() => logger.log(`Add${type} success`))
 		.catch(err => {
 			deletePath(request.file.path);

@@ -4,10 +4,10 @@
 	"description": "",
 	"main": "./server/server.ts",
 	"scripts": {
-		"dev": "tsnd --respawn ./server/server.ts -- --dev",
-		"prod": "ts-node ./server/server.ts",
+		"dev": "NODE_ENV=development tsnd --respawn ./server/server.ts",
+		"prod": "NODE_ENV=production ts-node ./server/server.ts",
 		"killPort": "sudo kill -9 $(sudo lsof -t -i:3000)",
-		"clearLogs": "rm -r ./logs",
+		"clearLogs": "rm -r ./private/logs",
 		"lint": "npx eslint ./server/**"
 	},
 	"keywords": [],
@@ -15,7 +15,6 @@
 	"license": "GPL-3.0",
 	"dependencies": {
 		"bcrypt": "^5.0.1",
-		"commander": "^7.2.0",
 		"cors": "^2.8.5",
 		"express": "^4.17.1",
 		"morgan": "^1.10.0",
@@ -24,7 +23,6 @@
 	},
 	"devDependencies": {
 		"@types/bcrypt": "^3.0.1",
-		"@types/commander": "^2.12.2",
 		"@types/cors": "^2.8.10",
 		"@types/express": "^4.17.11",
 		"@types/morgan": "^1.9.2",

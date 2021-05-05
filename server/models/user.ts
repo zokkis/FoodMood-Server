@@ -10,6 +10,12 @@ export interface IDBInsertUser {
 	shoppingList: string;
 }
 
+export interface IPublicUser {
+	userId: number;
+	username: string;
+	favorites: string;
+}
+
 export interface ILightUser {
 	userId: number;
 	username: string;
@@ -63,13 +69,13 @@ export class LightUser implements ILightUser {
 		return new LightUser(
 			user.userId,
 			user.username,
-			tryParse(user.permissions) || user.permissions,
-			tryParse(user.favorites) || user.favorites,
-			tryParse(user.shoppingList) || user.shoppingList
+			typeof user.permissions === 'string' ? tryParse(user.permissions) || user.permissions : user.permissions,
+			typeof user.favorites === 'string' ? tryParse(user.favorites) || user.favorites : user.favorites,
+			typeof user.shoppingList === 'string' ? tryParse(user.shoppingList) || user.shoppingList : user.shoppingList
 		);
 	}
 
-	public static getDBInsertUser(user: User | IUser): IDBInsertUser {
+	public static getDBInsertUser(user: { username: string, password: string }): IDBInsertUser {
 		return {
 			username: user.username,
 			password: user.password,

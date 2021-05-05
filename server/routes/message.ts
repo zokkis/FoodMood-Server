@@ -5,6 +5,7 @@ import Logger from '../utils/logger';
 import { errorHandler, RequestError } from '../utils/error';
 import { defaultHttpResponseMessages } from '../models/httpResponse';
 import { isPositiveSaveInteger } from '../utils/validator';
+import { OkPacket } from 'mysql';
 
 const logger = new Logger('Message');
 
@@ -39,9 +40,9 @@ export const sendMessage = (request: Request, response: Response): void => {
 		.then(() => {
 			delete request.body.messageId;
 			const addMessage = 'INSERT INTO messages SET ?';
-			databaseQuerry(addMessage, Message.getFromJson({ ...request.body, senderId: request.user.userId }));
+			return databaseQuerry(addMessage, Message.getForDB({ ...request.body, senderId: request.user.userId }));
 		})
-		.then(() => response.status(200).send(defaultHttpResponseMessages.get(200)))
+		.then((dbPacket: OkPacket) => response.status(201).send({ insertId: dbPacket.insertId }))
 		.then(() => logger.log('Send message success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };
@@ -61,7 +62,7 @@ export const editMessage = (request: Request, response: Response): void => {
 			if (message.length !== 1) {
 				throw new RequestError(422);
 			}
-			const updateData: Message = Message.getFromJson({ ...message[0], edited: true });
+			const updateData = Message.getForDB({ ...message[0], edited: true });
 			if (updateData.senderId !== request.user.userId) {
 				throw new RequestError(403);
 			}
@@ -72,7 +73,7 @@ export const editMessage = (request: Request, response: Response): void => {
 			updateData.message = request.body.message ?? updateData.message;
 
 			const sqlUpdateMessage = 'UPDATE messages SET ? WHERE messageId = ?';
-			databaseQuerry(sqlUpdateMessage, [updateData, request.body.messageId]);
+			return databaseQuerry(sqlUpdateMessage, [updateData, request.body.messageId]);
 		})
 		.then(() => response.status(201).send(defaultHttpResponseMessages.get(201)))
 		.then(() => logger.log('Edit message success!'))

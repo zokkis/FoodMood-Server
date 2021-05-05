@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { defaultHttpResponseMessages, HTTPResponseTypes } from '../models/httpResponse';
 import Logger from './logger';
 
-const logger = new Logger('Error');
+const logger = new Logger('Errorhandler');
 
 export class RequestError extends Error {
 	constructor(
@@ -14,6 +14,6 @@ export class RequestError extends Error {
 }
 
 export const errorHandler = (response: Response, status: HTTPResponseTypes, err?: RequestError | string): void => {
-	logger.error(err);
-	response.status(status).send(typeof err == 'string' ? err : err?.message);
+	logger.error(err || defaultHttpResponseMessages.get(status));
+	response.status(status).send(typeof err == 'string' ? err : err?.message || defaultHttpResponseMessages.get(status));
 };

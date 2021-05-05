@@ -1,23 +1,29 @@
 import { Request, Response } from 'express';
 import { OkPacket } from 'mysql';
 import { Category } from '../models/category';
-import { databaseQuerry, getEntitiesWithId, isValideSQLTimestamp } from '../utils/database';
+import { databaseQuerry, getCategoryById, getEntitiesWithId, isValideSQLTimestamp } from '../utils/database';
 import Logger from '../utils/logger';
 import { getPermissionDetailsOfType, getPermissionIdsToCheck } from '../utils/permissions';
 import { errorHandler, RequestError } from '../utils/error';
 import { defaultHttpResponseMessages } from '../models/httpResponse';
 import { isPositiveSaveInteger } from '../utils/validator';
+import { removeLastEdit } from '../utils/sender';
 
 const logger = new Logger('Category');
 
 export const addCategory = (request: Request, response: Response): void => {
-	if (!request.body) {
+	if (!request.body || !request.body.title) {
 		return errorHandler(response, 400);
 	}
 
-	const sqlToAdd = 'INSERT INTO categories SET ?';
-	databaseQuerry(sqlToAdd, { ...Category.getFromJson(request.body), categoryId: undefined })
-		.then(() => response.status(201).send(defaultHttpResponseMessages.get(201)))
+	getCategoryById(request.body.parentId, false, false)
+		.then(category => {
+			if (!category && request.body.parentId) {
+				throw new RequestError(400);
+			}
+		})
+		.then(() => databaseQuerry('INSERT INTO categories SET ?', Category.getDBInsert(request.body)))
+		.then((dbPacket: OkPacket) => response.status(201).send({ insertId: dbPacket.insertId }))
 		.then(() => logger.log('Addcategory success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
@@ -44,13 +50,9 @@ export const deleteCategory = async (request: Request, response: Response): Prom
 	let isMain = false;
 	let parentId: number | undefined;
 
-	const sqlDeleteCategory = 'SELECT parentCategoryId FROM categories WHERE categoryId = ?';
-	databaseQuerry(sqlDeleteCategory, categoryId)
-		.then((data: Category[]) => {
-			if (data.length !== 1) {
-				throw new RequestError(422);
-			}
-			parentId = data[0].parentCategoryId;
+	getCategoryById(categoryId)
+		.then(data => {
+			parentId = data?.parentId;
 
 			if (!parentId || parentId === categoryId) {
 				if (!canDeleteMain) {
@@ -58,14 +60,14 @@ export const deleteCategory = async (request: Request, response: Response): Prom
 				}
 				isMain = true;
 			}
-			const sqlCheckHasChilds = 'SELECT categoryId FROM categories WHERE parentCategoryId = ?';
+			const sqlCheckHasChilds = 'SELECT categoryId FROM categories WHERE parentId = ?';
 			return databaseQuerry(sqlCheckHasChilds, categoryId);
 		})
 		.then((childs: Category[]) => {
 			if (childs.length > 0 && !canDeleteWith) {
 				throw new RequestError(403);
 			}
-			const sqlChangeParentId = 'UPDATE categories SET parentCategoryId = ? WHERE parentCategoryId = ?';
+			const sqlChangeParentId = 'UPDATE categories SET parentId = ? WHERE parentId = ?';
 			return databaseQuerry(sqlChangeParentId, [isMain ? null : parentId, categoryId]);
 		})
 		.then(() => {
@@ -83,20 +85,11 @@ export const changeCategory = (request: Request, response: Response): void => {
 		return errorHandler(response, 400);
 	}
 
-	let sqlChangeCategory = 'UPDATE categories SET ';
-	const insetValues: string[] = [];
-
-	if (request.body.title) {
-		sqlChangeCategory += request.body.title + ' = ?, ';
-		insetValues.push(request.body.title);
-	}
-	if (request.body.parentId) {
-		sqlChangeCategory += request.body.parentId + ' = ?, ';
-		insetValues.push(request.body.parentId);
-	}
-
-	sqlChangeCategory = sqlChangeCategory.substring(0, sqlChangeCategory.length - 2) + ' WHERE categoryId = ?';
-	databaseQuerry(sqlChangeCategory, [...insetValues, categoryId])
+	getCategoryById(categoryId)
+		.then(() => {
+			const sqlChangeCategory = 'UPDATE categories SET ? WHERE categoryId = ?';
+			return databaseQuerry(sqlChangeCategory, [Category.getDBInsert(request.body), categoryId]);
+		})
 		.then((data: OkPacket) => response.status(201).send(data))
 		.then(() => logger.log('Changecategory success!'))
 		.catch(err => errorHandler(response, 500, err));
@@ -108,12 +101,7 @@ export const getCategories = (request: Request, response: Response): void => {
 	let sqlGetCategories = 'SELECT * FROM categories';
 	sqlGetCategories += isValideQuery ? ' WHERE lastEdit >= ?' : '';
 	databaseQuerry(sqlGetCategories, isValideQuery ? request.body.lastEdit : undefined)
-		.then((categories: Category[]) => {
-			for (const cat of categories) {
-				delete cat.lastEdit;
-			}
-			response.status(200).send(categories);
-		})
+		.then((categories: Category[]) => response.status(200).send(removeLastEdit(categories)))
 		.then(() => logger.log('Getcategory success!'))
 		.catch(err => errorHandler(response, 500, err));
 };

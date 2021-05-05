@@ -1,3 +1,10 @@
+export interface IDBInsertMessage {
+	senderId: number;
+	receiverId: number;
+	message: string;
+	edited?: boolean;
+}
+
 export interface IMessage {
 	messageId: number;
 	senderId: number;
@@ -16,13 +23,12 @@ export class Message implements IMessage {
 	) {
 	}
 
-	public static getFromJson(message: Message | IMessage): Message {
-		return new Message(
-			message.messageId,
-			message.senderId,
-			message.receiverId,
-			message.message,
-			!!message.edited
-		);
+	public static getForDB(message: Message | IMessage): IDBInsertMessage {
+		return {
+			senderId: message.senderId,
+			receiverId: message.receiverId,
+			message: message.message,
+			edited: !!message.edited
+		};
 	}
 }

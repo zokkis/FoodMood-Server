@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import https from 'https';
 import fs from 'fs';
-import { program, Option } from 'commander';
 import Logger from './utils/logger';
 import { addFavorite, addShoppingList, changePassword, changeUsername, deleteFavorite, deleteShoppingList, deleteUser, getFavorites, getUsers, login, logout, register } from './routes/user';
 import { hasPerms } from './utils/permissions';
@@ -17,11 +16,6 @@ import { addDocument, getDocument, deleteDocument } from './routes/document';
 import { addCategory, changeCategory, deleteCategory, getCategories } from './routes/category';
 import { getMessagesForMe, getOwnMessages, sendMessage, editMessage, deleteMessage } from './routes/message';
 
-program
-	.addOption(new Option('-d, --dev', 'run in dev').default(false))
-	.parse();
-
-const options = program.opts();
 const logger = new Logger('Server');
 const app = express();
 
@@ -42,7 +36,7 @@ app.get('/', (_request, response) => {
 	response.status(200).send('<strong>ONLINE</strong>');
 });
 
-const info = { isOnline: true, version: server.version, isDev: options.dev };
+const info = { isOnline: true, version: server.version, isProd: process.env.NODE_ENV === 'production' };
 app.get('/info', (_request, response) => {
 	response.status(200).send(info);
 });

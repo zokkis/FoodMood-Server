@@ -18,9 +18,9 @@ export const deleteCachedUser = (username: string | undefined): void => {
 	}
 	const index = cachedUsers.findIndex(u => u.username === username);
 	if (index === -1) {
-		throw new Error('No user found for' + username);
+		throw new Error('No user found for ' + username);
 	}
-	cachedUsers.splice(index, 1);
+	cachedUsers.splice(index);
 };
 
 export const updateCachedUser = (oldUsername: string | undefined, newUser: User): void => {
@@ -37,9 +37,12 @@ export const updateCachedUsersPropety = (username: string | undefined, prop: key
 		throw new Error(`updateCachedUser - missing input - ${username}, ${prop}, ${newValue}`);
 	}
 
-	const user = getCachedUserByName(username) || User.getDefaultUser();
-	user[prop] = newValue as never; // @TEST
-	updateCachedUser(username, user as User);
+	const user = getCachedUserByName(username);
+	if (!user) {
+		throw new Error('No user found!');
+	}
+	user[prop] = newValue as never;
+	updateCachedUser(user.username, user as User);
 };
 
 export const setNewCacheTime = (user: User): void => {

@@ -1,7 +1,12 @@
+export interface IDBInsertCategory {
+	title: string;
+	parentId?: number;
+}
+
 export interface ICategory {
 	categoryId: number;
 	title: string;
-	parentCategoryId?: number;
+	parentId?: number;
 	lastEdit?: string;
 }
 
@@ -9,16 +14,15 @@ export class Category implements ICategory {
 	constructor(
 		public categoryId: number,
 		public title: string,
-		public parentCategoryId?: number,
+		public parentId?: number,
 		public lastEdit?: string
 	) {
 	}
 
-	public static getFromJson(json: Category | ICategory): Category {
-		return new Category(
-			json.categoryId,
-			json.title,
-			json.parentCategoryId
-		);
+	public static getDBInsert(json: Category | ICategory): IDBInsertCategory {
+		return {
+			title: json.title,
+			parentId: json.parentId
+		};
 	}
 }

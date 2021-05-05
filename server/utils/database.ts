@@ -5,14 +5,13 @@ import { Food } from '../models/food';
 import { User } from '../models/user';
 import { getCachedUserById, getCachedUserByName } from './cachedUser';
 import { RequestError } from './error';
+import { Category } from '../models/category';
 
 const logger = new Logger('Database');
 const db = mysql.createConnection(sqlConfigs);
 
 db.connect(err => {
-	if (err) {
-		throw err;
-	}
+	if (err) { throw err; }
 	logger.log('MySQL connected...');
 });
 
@@ -25,6 +24,17 @@ export const databaseQuerry = (sql: string, data: any = undefined): Promise<any>
 export const getEntitiesWithId = (id: number | string): Promise<Food[]> => {
 	const sqlGetFoods = 'SELECT * FROM entity WHERE entityId = ?';
 	return databaseQuerry(sqlGetFoods, id);
+};
+
+export const getEntityWithId = (id: number | string, errorOnEmpty = true, errorOnFill = false): Promise<Food> => {
+	const sqlGetFoods = 'SELECT * FROM entity WHERE entityId = ?';
+	return databaseQuerry(sqlGetFoods, id)
+		.then((foods: Food[]) => {
+			if ((foods.length === 0 && errorOnEmpty) || (foods.length > 0 && errorOnFill)) {
+				throw new RequestError(400);
+			}
+			return foods[0];
+		});
 };
 
 // eslint-disable-next-line
@@ -50,4 +60,16 @@ export const getUserById = async (id: number): Promise<User> => {
 			}
 			return User.getDefaultUser(users[0]);
 		});
+};
+
+export const getCategoryById = async (id: number | string | undefined, errorOnEmpty = true, errorOnFill = false): Promise<Category | undefined> => {
+	return !id
+		? undefined
+		: databaseQuerry('SELECT * FROM categories WHERE categoryId = ?', id)
+			.then((categories: Category[]) => {
+				if ((categories.length === 0 && errorOnEmpty) || (categories.length > 0 && errorOnFill)) {
+					throw new RequestError(400);
+				}
+				return categories[0];
+			});
 };
