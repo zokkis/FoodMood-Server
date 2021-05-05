@@ -5,7 +5,7 @@ import { errorHandler } from "../utils/error";
 import Logger from "../utils/logger";
 import { isPositiveSaveInteger } from "../utils/validator";
 
-const logger = new Logger('User');
+const logger = new Logger('Food-Util');
 
 // gets array of entityIds and send deleted or not know ids back
 export const checkFoodIds = (request: Request, response: Response): void => {
@@ -19,6 +19,6 @@ export const checkFoodIds = (request: Request, response: Response): void => {
 			const foodIds = entities.map(ent => ent.entityId);
 			response.status(200).send(ids.filter(id => !foodIds.includes(id)));
 		})
-		.then(() => logger.log('success!'))
-		.catch(err => errorHandler(response, err.statusCode || 500, err));
+		.then(() => logger.log('Food-Util for deleted Ids success!'))
+		.catch(err => errorHandler(response, 500, err));
 }
