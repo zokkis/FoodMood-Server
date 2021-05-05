@@ -7,6 +7,7 @@ import { isPositiveSaveInteger } from "../utils/validator";
 
 const logger = new Logger('User');
 
+// gets array of entityIds and send deleted or not know ids back
 export const checkFoodIds = (request: Request, response: Response): void => {
 	const ids: number[] = Array.from(new Set<number>(request.body.ids));
 	if (!ids || ids.length === 0 || !Array.isArray(ids) || ids.find(id => !isPositiveSaveInteger(id))) {
