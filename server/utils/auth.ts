@@ -9,7 +9,7 @@ import Logger from './logger';
 const logger = new Logger('Auth');
 
 export const checkAuth = (request: Request, response: Response, next: NextFunction): void => {
-	logger.log(`${request.ip} try to connect with ${request.headers.authorization}!`);
+	logger.log(`${request.ip} try to connect!`);
 	if (!request.headers.authorization) {
 		return errorHandler(response, 401);
 	}
