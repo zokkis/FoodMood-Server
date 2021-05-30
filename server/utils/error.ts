@@ -15,5 +15,5 @@ export class RequestError extends Error {
 
 export const errorHandler = (response: Response, status: HTTPResponseTypes, err?: RequestError | string): void => {
 	logger.error(err || defaultHttpResponseMessages.get(status));
-	response.status(status).send(typeof err == 'string' ? err : err?.message || defaultHttpResponseMessages.get(status));
+	response.status(status).json(typeof err == 'string' ? err : err?.message || defaultHttpResponseMessages.get(status));
 };

@@ -1,10 +1,12 @@
-export interface IFood {
+import { IRating } from './rating';
+
+interface IFood {
 	title: string;
 	categoryId: number;
+	rating: IRating;
 	entityId?: number;
 	comment?: string;
 	description?: string;
-	rating?: number;
 	price?: number;
 	brand?: string;
 	percentage?: number;
@@ -16,10 +18,10 @@ export class Food implements IFood {
 	constructor(
 		public title: string,
 		public categoryId: number,
+		public rating: IRating,
 		public entityId?: number,
 		public comment?: string,
 		public description?: string,
-		public rating?: number,
 		public price?: number,
 		public brand?: string,
 		public percentage?: number,
@@ -27,14 +29,14 @@ export class Food implements IFood {
 		public lastEdit?: string) {
 	}
 
-	public static getFromJson(json: Food | IFood): Food {
+	public static getFromJson(json: Food | IFood): IFood {
 		return new Food(
 			json.title,
 			json.categoryId,
+			json.rating || {},
 			json.entityId,
 			json.comment,
 			json.description,
-			json.rating,
 			json.price,
 			json.brand,
 			json.percentage,
@@ -42,10 +44,11 @@ export class Food implements IFood {
 		);
 	}
 
-	public static getDBFood(json: Food | IFood): Food {
+	public static getDBFood(json: Food | IFood): IFood {
 		const food = this.getFromJson(json);
 		delete food.entityId;
 		delete food.lastEdit;
+		food.rating = JSON.stringify(food.rating) as never;
 
 		return food;
 	}

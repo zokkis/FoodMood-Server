@@ -15,7 +15,7 @@ export type PermissionNamesType = 'VIEW_FOOD' | 'ADD_FOOD' | 'CHANGE_FOOD' | 'DE
 
 //export type PermissionNamesType = typeof PermissionNames[number];
 
-export type Permissions = { [name in PermissionNamesType]: PermissionDetails };
+type Permissions = { [name in PermissionNamesType]: PermissionDetails };
 
 export const PermissionsMap: Permissions = {
 	VIEW_FOOD: {

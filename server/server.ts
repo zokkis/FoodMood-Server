@@ -1,21 +1,23 @@
-import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
-import https from 'https';
+import express from 'express';
 import fs from 'fs';
-import Logger from './utils/logger';
-import { addFavorite, addShoppingList, changePassword, changeUsername, deleteFavorite, deleteShoppingList, deleteUser, getFavorites, getUsers, login, logout, register } from './routes/user';
-import { hasPerms } from './utils/permissions';
-import { checkAuth } from './utils/auth';
-import server from '../package.json';
-import { getAllFoods, getFoodById, addFood, changeFood, deleteFood } from './routes/food';
-import { CERT_PEM_PATH, KEY_PEM_PATH, LOG_PATH } from './utils/constans';
+import https from 'https';
 import morgan from 'morgan';
 import multer from 'multer';
-import { checkFileAndMimetype, multerStorage } from './utils/document';
-import { addDocument, getDocument, deleteDocument } from './routes/document';
+import server from '../package.json';
+import { defaultHttpResponseMessages } from './models/httpResponse';
 import { addCategory, changeCategory, deleteCategory, getCategories } from './routes/category';
-import { getMessagesForMe, getOwnMessages, sendMessage, editMessage, deleteMessage } from './routes/message';
+import { addDocument, deleteDocument, getDocument } from './routes/document';
+import { addFood, changeFood, deleteFood, getAllFoods, getFoodById } from './routes/food';
+import { deleteMessage, editMessage, getMessagesForMe, getOwnMessages, sendMessage } from './routes/message';
+import { addFavorite, addShoppingList, changePassword, changeUsername, deleteFavorite, deleteShoppingList, deleteUser, getFavorites, getUsers, login, logout, register } from './routes/user';
 import { checkFoodIds } from './routes/utils';
+import { checkAuth } from './utils/auth';
+import { CERT_PEM_PATH, KEY_PEM_PATH, LOG_PATH } from './utils/constans';
+import { checkFileAndMimetype, multerStorage } from './utils/document';
+import Logger from './utils/logger';
+import { hasPerms } from './utils/permissions';
 
 const logger = new Logger('Server');
 const app = express();
@@ -32,14 +34,15 @@ app.use(morgan('[:date[iso]] :remote-addr :remote-user :method :url :response-ti
 	{ stream: fs.createWriteStream(LOG_PATH + '/morgan.log', { flags: 'a' }) }));
 app.use(cors());
 app.use(express.json());
+app.use(compression());
 
 app.get('/', (_request, response) => {
-	response.status(200).send('<strong>ONLINE</strong>');
+	response.status(200).json('ONLINE');
 });
 
 const info = { isOnline: true, version: server.version, isProd: process.env.NODE_ENV === 'production' };
 app.get('/info', (_request, response) => {
-	response.status(200).send(info);
+	response.status(200).json(info);
 });
 
 app.post('/register', register);
@@ -66,15 +69,15 @@ app.post('/shoppinglists', checkAuth, addShoppingList);
 
 app.delete('/shoppinglists/:id', checkAuth, deleteShoppingList);
 
-app.get('/foods', hasPerms('VIEW_FOOD'), checkAuth, getAllFoods);
+app.get('/foods', checkAuth, hasPerms('VIEW_FOOD'), getAllFoods);
 
-app.get('/foods/:id', hasPerms('VIEW_FOOD'), checkAuth, getFoodById);
+app.get('/foods/:id', checkAuth, hasPerms('VIEW_FOOD'), getFoodById);
 
-app.post('/foods', hasPerms('ADD_FOOD'), checkAuth, addFood);
+app.post('/foods', checkAuth, hasPerms('ADD_FOOD'), addFood);
 
-app.put('/foods/:id', hasPerms('CHANGE_FOOD'), checkAuth, changeFood);
+app.put('/foods/:id', checkAuth, hasPerms('CHANGE_FOOD'), changeFood);
 
-app.delete('/foods/:id', hasPerms('DELETE_FOOD'), checkAuth, deleteFood);
+app.delete('/foods/:id', checkAuth, hasPerms('DELETE_FOOD'), deleteFood);
 
 app.post('/images',
 	checkAuth,
@@ -104,7 +107,7 @@ app.post('/categories', checkAuth, hasPerms('CREATE_CATEGORY'), addCategory);
 
 app.put('/categories/:id', checkAuth, hasPerms('EDIT_CATEGORY'), changeCategory);
 
-app.delete('/categories/id:', checkAuth, deleteCategory);
+app.delete('/categories/:id', checkAuth, deleteCategory);
 
 app.get('/mymessages', checkAuth, hasPerms('SEND_MESSAGES'), getOwnMessages);
 
@@ -119,5 +122,5 @@ app.delete('/messages/:id', checkAuth, hasPerms('DELETE_MESSAGES'), deleteMessag
 app.post('/utils/foods', checkAuth, hasPerms('VIEW_FOOD'), checkFoodIds);
 
 app.all('*', (_request, response) => {
-	response.status(301).redirect('/');
+	response.status(404).json(defaultHttpResponseMessages.get(404));
 });

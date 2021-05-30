@@ -1,9 +1,9 @@
-import { Request, Response } from "express";
-import { Food } from "../models/food";
-import { databaseQuerry } from "../utils/database";
-import { errorHandler } from "../utils/error";
-import Logger from "../utils/logger";
-import { isPositiveSaveInteger } from "../utils/validator";
+import { Request, Response } from 'express';
+import { Food } from '../models/food';
+import { databaseQuerry } from '../utils/database';
+import { errorHandler } from '../utils/error';
+import Logger from '../utils/logger';
+import { isPositiveSaveInteger } from '../utils/validator';
 
 const logger = new Logger('Food-Util');
 
@@ -17,8 +17,8 @@ export const checkFoodIds = (request: Request, response: Response): void => {
 	databaseQuerry('SELECT entityId FROM entity WHERE entityId IN ' + JSON.stringify(ids).replace('[', '(').replace(']', ')'))
 		.then((entities: Food[]) => {
 			const foodIds = entities.map(ent => ent.entityId);
-			response.status(200).send(ids.filter(id => !foodIds.includes(id)));
+			response.status(200).json(ids.filter(id => !foodIds.includes(id)));
 		})
-		.then(() => logger.log('Food-Util for deleted Ids success!'))
+		.then(() => logger.log('Deleted Ids success!'))
 		.catch(err => errorHandler(response, 500, err));
-}
+};

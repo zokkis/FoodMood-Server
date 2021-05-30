@@ -1,17 +1,27 @@
+import { IRating } from '../models/rating';
+
 export const isPositiveSaveInteger = (toTest: string | number): boolean => {
 	if (!toTest) {
 		return false;
 	}
 	const num = Number(toTest);
-	return Number.isInteger(num) && num > 0 && Number.isSafeInteger(num);
+	return Number.isSafeInteger(num) && num > 0;
 };
 
 export const isValideUsername = (username: string): boolean => {
-	return !!username && username.length < 50;
+	return typeof username === 'string' && username.length < 50;
 };
 
 export const isValidePassword = (password: string): boolean => {
-	return !!password && /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])(?=.*[0-9])(?=.*[a-z]).{6,}/.test(password);
+	return typeof password === 'string' && /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])(?=.*[0-9])(?=.*[a-z]).{6,}/.test(password);
+};
+
+export const isValideRating = (toTest: IRating, userId: number): boolean => {
+	if (!toTest || !userId) {
+		return false;
+	}
+	const num = Number(toTest[userId]);
+	return num <= 5 && num >= 0;
 };
 
 // eslint-disable-next-line

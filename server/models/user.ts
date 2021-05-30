@@ -2,7 +2,7 @@ import { tryParse } from '../utils/validator';
 import { Permission } from './permission';
 import { ShoppingList } from './shoppingList';
 
-export interface IDBInsertUser {
+interface IDBInsertUser {
 	username: string;
 	password: string;
 	permissions: string;
@@ -10,13 +10,7 @@ export interface IDBInsertUser {
 	shoppingList: string;
 }
 
-export interface IPublicUser {
-	userId: number;
-	username: string;
-	favorites: string;
-}
-
-export interface ILightUser {
+interface ILightUser {
 	userId: number;
 	username: string;
 	permissions: Permission;
@@ -24,7 +18,7 @@ export interface ILightUser {
 	shoppingList: ShoppingList[];
 }
 
-export interface IUser extends ILightUser {
+interface IUser extends ILightUser {
 	password: string;
 	lastEdit?: string;
 	cachedTime?: number;

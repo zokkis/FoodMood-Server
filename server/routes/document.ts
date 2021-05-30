@@ -1,15 +1,15 @@
 import { Request, Response } from 'express';
+import { OkPacket } from 'mysql';
+import { Document } from '../models/document';
+import { defaultHttpResponseMessages } from '../models/httpResponse';
 import { PermissionNamesType } from '../models/permission';
 import { DOCUMENT_PATH } from '../utils/constans';
 import { databaseQuerry } from '../utils/database';
+import { errorHandler, RequestError } from '../utils/error';
 import { deletePath } from '../utils/fileAndFolder';
 import Logger from '../utils/logger';
-import { getPermissionIdsToCheck, getPermissionDetailsOfType } from '../utils/permissions';
-import { errorHandler, RequestError } from '../utils/error';
-import { Document } from '../models/document';
-import { defaultHttpResponseMessages } from '../models/httpResponse';
+import { getPermissionDetailsOfType, getPermissionIdsToCheck } from '../utils/permissions';
 import { isPositiveSaveInteger } from '../utils/validator';
-import { OkPacket } from 'mysql';
 
 const logger = new Logger('Document');
 
@@ -37,7 +37,7 @@ export const addDocument = (request: Request, response: Response): void => {
 			const sqlCreateDocument = 'INSERT INTO documents SET ?';
 			return databaseQuerry(sqlCreateDocument, { type, name: request.file.filename, entityId: request.body.entityId });
 		})
-		.then((dbPacket: OkPacket) => response.status(201).send({ insertId: dbPacket.insertId }))
+		.then((dbPacket: OkPacket) => response.status(201).json({ insertId: dbPacket.insertId }))
 		.then(() => logger.log(`Add${type} success`))
 		.catch(err => {
 			deletePath(request.file.path);
@@ -82,7 +82,7 @@ export const deleteDocument = (request: Request, response: Response): void => {
 			return databaseQuerry(sqlDeleteDocument, request.params.id);
 		})
 		.then(() => deletePath(pathToDelete))
-		.then(() => response.status(202).send(defaultHttpResponseMessages.get(202)))
+		.then(() => response.status(202).json(defaultHttpResponseMessages.get(202)))
 		.then(() => logger.log('Document deleted!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };

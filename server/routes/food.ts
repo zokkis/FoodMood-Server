@@ -1,14 +1,13 @@
 import { Request, Response } from 'express';
 import { OkPacket } from 'mysql';
 import { Food } from '../models/food';
+import { defaultHttpResponseMessages } from '../models/httpResponse';
 import { DOCUMENT_PATH } from '../utils/constans';
 import { databaseQuerry, getCategoryById, getEntitiesWithId, getEntityWithId, isValideSQLTimestamp } from '../utils/database';
+import { errorHandler, RequestError } from '../utils/error';
 import { deletePath } from '../utils/fileAndFolder';
 import Logger from '../utils/logger';
-import { errorHandler } from '../utils/error';
-import { defaultHttpResponseMessages } from '../models/httpResponse';
-import { isPositiveSaveInteger } from '../utils/validator';
-import { removeLastEdit } from '../utils/sender';
+import { isPositiveSaveInteger, isValideRating, tryParse } from '../utils/validator';
 
 const logger = new Logger('Food');
 
@@ -18,7 +17,7 @@ export const getAllFoods = (request: Request, response: Response): void => {
 	let sqlGetFoods = 'SELECT * FROM entity';
 	sqlGetFoods += isValideQuery ? ' WHERE lastEdit >= ?' : '';
 	databaseQuerry(sqlGetFoods, isValideQuery ? request.query.lastEdit : undefined)
-		.then((data: Food[]) => response.status(200).send(removeLastEdit(data)))
+		.then((data: Food[]) => response.status(200).json(data))
 		.then(() => logger.log('Getfoods success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
@@ -29,7 +28,7 @@ export const getFoodById = (request: Request, response: Response): void => {
 	}
 
 	getEntitiesWithId(request.params.id)
-		.then((data: Food[]) => response.status(200).send(removeLastEdit(data)))
+		.then((data: Food[]) => response.status(200).json(data))
 		.then(() => logger.log('Getfood success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
@@ -40,8 +39,20 @@ export const addFood = (request: Request, response: Response): void => {
 	}
 
 	getCategoryById(request.body.categoryId)
-		.then(() => databaseQuerry('INSERT INTO entity SET ?', { ...Food.getDBFood(request.body) }))
-		.then((dbPacket: OkPacket) => response.status(200).send({ entityId: dbPacket.insertId }))
+		.then(() => {
+			const rating = request.body.rating;
+
+			if (!rating) {
+				return;
+			}
+
+			const userId = request.user.userId;
+			if (!isValideRating(rating, userId)) {
+				throw new RequestError(404);
+			}
+		})
+		.then(() => databaseQuerry('INSERT INTO entity SET ?', Food.getDBFood(request.body)))
+		.then((dbPacket: OkPacket) => response.status(200).json({ entityId: dbPacket.insertId }))
 		.then(() => logger.log('Addfood success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
@@ -53,12 +64,28 @@ export const changeFood = (request: Request, response: Response): void => {
 
 	getEntityWithId(request.params.id)
 		.then((entity: Food) => {
-			const newFood = Food.getDBFood({ ...entity, ...request.body });
+			const newRating = request.body.rating;
 
-			const sqlChangeFood = 'UPDATE entity SET ? WHERE entityId = ?';
-			return databaseQuerry(sqlChangeFood, [{ ...newFood, foodId: undefined }, request.params.id]);
+			if (!newRating) {
+				delete request.body.rating;
+				return entity;
+			}
+
+			const userId = request.user.userId;
+			if (!isValideRating(newRating, userId)) {
+				throw new RequestError(404);
+			}
+
+			entity.rating = tryParse(entity.rating);
+			entity.rating[userId] = request.body.rating[userId];
+			delete request.body.rating;
+			return entity;
 		})
-		.then(() => response.status(201).send(defaultHttpResponseMessages.get(201)))
+		.then((entity: Food) => {
+			const sqlChangeFood = 'UPDATE entity SET ? WHERE entityId = ?';
+			return databaseQuerry(sqlChangeFood, [Food.getDBFood({ ...entity, ...request.body }), request.params.id]);
+		})
+		.then(() => response.status(201).json(defaultHttpResponseMessages.get(201)))
 		.then(() => logger.log('Changefood success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };
@@ -71,7 +98,7 @@ export const deleteFood = (request: Request, response: Response): void => {
 	const sqlDeleteFood = 'DELETE FROM entity WHERE entityId = ?';
 	databaseQuerry(sqlDeleteFood, request.params.id)
 		.then(() => deletePath(`${DOCUMENT_PATH}/${request.params.id}/`))
-		.then(() => response.status(202).send(defaultHttpResponseMessages.get(202)))
+		.then(() => response.status(202).json(defaultHttpResponseMessages.get(202)))
 		.then(() => logger.log('Delete success!'))
 		.catch(err => errorHandler(response, 500, err));
 };

@@ -23,15 +23,6 @@ export const deleteCachedUser = (username: string | undefined): void => {
 	cachedUsers.splice(index);
 };
 
-export const updateCachedUser = (oldUsername: string | undefined, newUser: User): void => {
-	if (!oldUsername || !newUser) {
-		throw new Error(`updateCachedUser - missing input - ${oldUsername}, ${newUser}`);
-	}
-
-	deleteCachedUser(oldUsername);
-	addCachedUser(newUser);
-};
-
 export const updateCachedUsersPropety = (username: string | undefined, prop: keyof User, newValue: number | string | number[] | Permission | ShoppingList[]): void => {
 	if (!username || !prop || !newValue) {
 		throw new Error(`updateCachedUser - missing input - ${username}, ${prop}, ${newValue}`);
@@ -42,7 +33,6 @@ export const updateCachedUsersPropety = (username: string | undefined, prop: key
 		throw new Error('No user found!');
 	}
 	user[prop] = newValue as never;
-	updateCachedUser(user.username, user as User);
 };
 
 export const setNewCacheTime = (user: User): void => {
@@ -52,19 +42,22 @@ export const setNewCacheTime = (user: User): void => {
 	user.cachedTime = Date.now();
 };
 
-export const getCachedUsers = (): User[] => cachedUsers;
-
 export const getCachedUserByName = (name: string | undefined): User | undefined => {
-	return getCachedUsers().find(user => user.username === name);
+	return cachedUsers.find(user => user.username === name);
 };
 
 export const getCachedUserById = (id: number | undefined): User | undefined => {
-	return getCachedUsers().find(user => user.userId === id);
+	return cachedUsers.find(user => user.userId === id);
 };
 
 setInterval(() => {
 	const currentTime = Date.now();
 	cachedUsers
-		.filter(user => currentTime - (user.cachedTime || currentTime) > 300000) //5mins
-		.forEach(user => deleteCachedUser(user.username));
-}, 150000);
+		.filter(user => currentTime - (user.cachedTime || 0) > 300000) //5mins
+		.forEach(user => {
+			try {
+				deleteCachedUser(user.username);
+				// eslint-disable-next-line no-empty
+			} catch { }
+		});
+}, 200000);

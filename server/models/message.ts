@@ -1,11 +1,11 @@
-export interface IDBInsertMessage {
+interface IDBInsertMessage {
 	senderId: number;
 	receiverId: number;
 	message: string;
 	edited?: boolean;
 }
 
-export interface IMessage {
+interface IMessage {
 	messageId: number;
 	senderId: number;
 	receiverId: number;

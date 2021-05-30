@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { Permission, PermissionDetails, PermissionNamesType, PermissionsMap } from '../models/permission';
-import Logger from './logger';
 import { errorHandler } from './error';
+import Logger from './logger';
 
 const logger = new Logger('Permissions');
 

@@ -1,10 +1,10 @@
-import { Request, Response, NextFunction, request } from 'express';
-import { User, LightUser } from '../models/user';
+import bcrypt from 'bcrypt';
+import { NextFunction, Request, request, Response } from 'express';
+import { LightUser, User } from '../models/user';
 import { getUserByUsername } from '../utils/database';
 import { addCachedUser, setNewCacheTime } from './cachedUser';
-import Logger from './logger';
 import { errorHandler, RequestError } from './error';
-import bcrypt from 'bcrypt';
+import Logger from './logger';
 
 const logger = new Logger('Auth');
 
@@ -26,7 +26,7 @@ export const checkAuth = (request: Request, response: Response, next: NextFuncti
 const checkAuthOf = async (username: string, password: string, response: Response, next: NextFunction) => {
 	let user: User;
 
-	getUserByUsername(username)
+	getUserByUsername(username, false)
 		.then((dbUser: User) => {
 			user = dbUser;
 			return bcrypt.compare(password, user.password);

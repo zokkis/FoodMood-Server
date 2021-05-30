@@ -1,9 +1,9 @@
-export interface IDBInsertCategory {
+interface IDBInsertCategory {
 	title: string;
 	parentId?: number;
 }
 
-export interface ICategory {
+interface ICategory {
 	categoryId: number;
 	title: string;
 	parentId?: number;
