@@ -9,7 +9,7 @@ import server from '../package.json';
 import { defaultHttpResponseMessages } from './models/httpResponse';
 import { addCategory, changeCategory, deleteCategory, getCategories } from './routes/category';
 import { addDocument, deleteDocument, getDocument } from './routes/document';
-import { addFood, changeFood, deleteFood, getAllFoods, getFoodById } from './routes/food';
+import { addFood, changeFood, deleteFood, getAllFoods, getFoodById, rateFood } from './routes/food';
 import { deleteMessage, editMessage, getMessagesForMe, getOwnMessages, sendMessage } from './routes/message';
 import { addFavorite, addShoppingList, changePassword, changeUsername, deleteFavorite, deleteShoppingList, deleteUser, getFavorites, getUsers, login, logout, register } from './routes/user';
 import { checkFoodIds } from './routes/utils';
@@ -78,6 +78,10 @@ app.post('/foods', checkAuth, hasPerms('ADD_FOOD'), addFood);
 app.put('/foods/:id', checkAuth, hasPerms('CHANGE_FOOD'), changeFood);
 
 app.delete('/foods/:id', checkAuth, hasPerms('DELETE_FOOD'), deleteFood);
+
+app.post('/foods/:id/rating', checkAuth, hasPerms('RATE_FOOD'), rateFood);
+
+app.put('/foods/:id/rating', checkAuth, hasPerms('RATE_FOOD'), rateFood);
 
 app.post('/images',
 	checkAuth,

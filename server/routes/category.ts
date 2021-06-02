@@ -89,7 +89,7 @@ export const changeCategory = (request: Request, response: Response): void => {
 			const sqlChangeCategory = 'UPDATE categories SET ? WHERE categoryId = ?';
 			return databaseQuerry(sqlChangeCategory, [Category.getDBInsert(request.body), categoryId]);
 		})
-		.then((data: OkPacket) => response.status(201).json(data))
+		.then(() => response.status(201).json(defaultHttpResponseMessages.get(201)))
 		.then(() => logger.log('Changecategory success!'))
 		.catch(err => errorHandler(response, 500, err));
 };

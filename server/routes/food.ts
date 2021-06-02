@@ -73,12 +73,9 @@ export const changeFood = (request: Request, response: Response): void => {
 
 			const userId = request.user.userId;
 			if (!isValideRating(newRating, userId)) {
-				throw new RequestError(404);
+				throw new RequestError(400);
 			}
-
-			entity.rating = tryParse(entity.rating);
-			entity.rating[userId] = request.body.rating[userId];
-			delete request.body.rating;
+			changeRating(entity, request, userId);
 			return entity;
 		})
 		.then((entity: Food) => {
@@ -102,3 +99,26 @@ export const deleteFood = (request: Request, response: Response): void => {
 		.then(() => logger.log('Delete success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
+
+export const rateFood = (request: Request, response: Response): void => {
+	if (!isPositiveSaveInteger(request.params.id) || isValideRating(request.body.rating, Number(request.params.id))) {
+		return errorHandler(response, 400);
+	}
+
+	getEntityWithId(request.params.id)
+		.then((food: Food) => {
+			changeRating(food, request, request.user.userId);
+			const sqlChangeRating = 'UPDATE entity SET rating = ? WHERE entityId = ?';
+			return databaseQuerry(sqlChangeRating, [JSON.stringify(food.rating), request.params.id]);
+		})
+		.then(() => response.status(201).json(defaultHttpResponseMessages.get(201)))
+		.then(() => logger.log('Delete success!'))
+		.catch(err => errorHandler(response, 500, err));
+};
+
+const changeRating = (entity: Food, request: Request, userId: number) => {
+	entity.rating = tryParse(entity.rating);
+	entity.rating[userId] = request.body.rating[userId];
+	delete request.body.rating;
+};
+
