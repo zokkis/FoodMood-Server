@@ -12,3 +12,4 @@
 /private_files
 *.log
 /private
+/dist

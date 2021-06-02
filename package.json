@@ -5,7 +5,8 @@
 	"main": "./server/server.ts",
 	"scripts": {
 		"dev": "NODE_ENV=development tsnd --respawn ./server/server.ts",
-		"prod": "NODE_ENV=production ts-node ./server/server.ts",
+		"build": "npx tsc -b . && cp -r private_files/*.pem dist/private_files/",
+		"prod": "NODE_ENV=production node ./dist/server/server.js",
 		"killPort": "sudo kill -9 $(sudo lsof -t -i:3000)",
 		"clearLogs": "rm -r ./private/logs",
 		"lint": "npx eslint ./server/**"

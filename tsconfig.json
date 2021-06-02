@@ -6,6 +6,7 @@
 		"lib": [
 			"ESNEXT"
 		],
+		"outDir": "dist",
 		"allowJs": false,
 		"removeComments": true,
 		"strict": true,
