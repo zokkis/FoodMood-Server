@@ -61,7 +61,8 @@ export const PermissionsMap: Permissions = {
 		id: 1100
 	},
 	VIEW_CATEGORIES: {
-		id: 1200
+		id: 1200,
+		isDefault: true
 	},
 	CREATE_CATEGORY: {
 		id: 1300
