@@ -28,7 +28,7 @@ export const addCategory = (request: Request, response: Response): void => {
 };
 
 export const deleteCategory = async (request: Request, response: Response): Promise<void> => {
-	const categoryId = Number(request.body.categoryId);
+	const categoryId = Number(request.params.id);
 	if (!isPositiveSaveInteger(categoryId)) {
 		return errorHandler(response, 400);
 	}
@@ -79,7 +79,7 @@ export const deleteCategory = async (request: Request, response: Response): Prom
 };
 
 export const changeCategory = (request: Request, response: Response): void => {
-	const categoryId = Number(request.body.categoryId);
+	const categoryId = Number(request.params.id);
 	if (!isPositiveSaveInteger(categoryId) || (!request.body.title && !isPositiveSaveInteger(request.body.parentId))) {
 		return errorHandler(response, 400);
 	}
@@ -100,6 +100,19 @@ export const getCategories = (request: Request, response: Response): void => {
 	let sqlGetCategories = 'SELECT * FROM categories';
 	sqlGetCategories += isValideQuery ? ' WHERE lastEdit >= ?' : '';
 	databaseQuerry(sqlGetCategories, isValideQuery ? request.body.lastEdit : undefined)
+		.then((categories: Category[]) => response.status(200).json(categories))
+		.then(() => logger.log('Getcategory success!'))
+		.catch(err => errorHandler(response, 500, err));
+};
+
+export const getCategorie = (request: Request, response: Response): void => {
+	const categoryId = Number(request.params.id);
+	if (!isPositiveSaveInteger(categoryId)) {
+		return errorHandler(response, 400);
+	}
+
+	const sqlGetCategorie = 'SELECT * FROM categories WHERE categoryId = ?';
+	databaseQuerry(sqlGetCategorie, categoryId)
 		.then((categories: Category[]) => response.status(200).json(categories))
 		.then(() => logger.log('Getcategory success!'))
 		.catch(err => errorHandler(response, 500, err));

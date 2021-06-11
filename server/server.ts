@@ -7,7 +7,7 @@ import morgan from 'morgan';
 import multer from 'multer';
 import server from '../package.json';
 import { defaultHttpResponseMessages } from './models/httpResponse';
-import { addCategory, changeCategory, deleteCategory, getCategories } from './routes/category';
+import { addCategory, changeCategory, deleteCategory, getCategorie, getCategories } from './routes/category';
 import { addDocument, deleteDocument, getDocument } from './routes/document';
 import { addFood, changeFood, deleteFood, getAllFoods, getFoodById, rateFood } from './routes/food';
 import { deleteMessage, editMessage, getMessagesForMe, getOwnMessages, sendMessage } from './routes/message';
@@ -106,6 +106,8 @@ app.get('/videos/:id', checkAuth, hasPerms('VIEW_VIDEOS'), getDocument);
 app.delete('/videos/:id', checkAuth, hasPerms('DELETE_VIDEOS'), deleteDocument);
 
 app.get('/categories', checkAuth, hasPerms('VIEW_CATEGORIES'), getCategories);
+
+app.get('/categories/:id', checkAuth, hasPerms('VIEW_CATEGORIES'), getCategorie);
 
 app.post('/categories', checkAuth, hasPerms('CREATE_CATEGORY'), addCategory);
 
