@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { LOG_PATH } from './constans';
+import { isProd, LOG_PATH } from './constans';
 import { mkdirIfNotExist } from './fileAndFolder';
 
 mkdirIfNotExist(LOG_PATH);
@@ -14,21 +14,21 @@ export default class Logger {
 	// eslint-disable-next-line
 	log(...message: any[]): void {
 		const prefix = this.getLoggingPrefix('\x1b[37m', 'LOG');
-		console.log(prefix, ...message, '\x1b[0m');
+		!isProd && console.log(prefix, ...message, '\x1b[0m');
 		this.appendTo(logStream, prefix, message);
 	}
 
 	// eslint-disable-next-line
 	warn(...warn: any[]): void {
 		const prefix = this.getLoggingPrefix('\x1b[33m', 'WARN');
-		console.warn(prefix, ...warn, '\x1b[0m');
+		!isProd && console.warn(prefix, ...warn, '\x1b[0m');
 		this.appendTo(warnStream, prefix, warn);
 	}
 
 	// eslint-disable-next-line
 	error(...error: any[]): void {
 		const prefix = this.getLoggingPrefix('\x1b[31m', 'ERROR');
-		console.error(prefix, ...error, '\x1b[0m');
+		!isProd && console.error(prefix, ...error, '\x1b[0m');
 		this.appendTo(errorStream, prefix, error);
 	}
 

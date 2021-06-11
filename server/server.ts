@@ -14,7 +14,7 @@ import { deleteMessage, editMessage, getMessagesForMe, getOwnMessages, sendMessa
 import { addFavorite, addShoppingList, changePassword, changeUsername, deleteFavorite, deleteShoppingList, deleteUser, getFavorites, getUsers, login, logout, register } from './routes/user';
 import { checkFoodIds } from './routes/utils';
 import { checkAuth } from './utils/auth';
-import { CERT_PEM_PATH, KEY_PEM_PATH, LOG_PATH } from './utils/constans';
+import { CERT_PEM_PATH, isProd, KEY_PEM_PATH, LOG_PATH } from './utils/constans';
 import { checkFileAndMimetype, multerStorage } from './utils/document';
 import Logger from './utils/logger';
 import { hasPerms } from './utils/permissions';
@@ -40,7 +40,7 @@ app.get('/', (_request, response) => {
 	response.status(200).json('ONLINE');
 });
 
-const info = { isOnline: true, version: server.version, isProd: process.env.NODE_ENV === 'production' };
+const info = { isOnline: true, version: server.version, isProd };
 app.get('/info', (_request, response) => {
 	response.status(200).json(info);
 });

@@ -15,14 +15,15 @@ export const addCategory = (request: Request, response: Response): void => {
 		return errorHandler(response, 400);
 	}
 
+	const insertCategory = Category.getDBInsert(request.body);
 	getCategoryById(request.body.parentId, false, false)
 		.then(category => {
 			if (!category && request.body.parentId) {
 				throw new RequestError(400);
 			}
 		})
-		.then(() => databaseQuerry('INSERT INTO categories SET ?', Category.getDBInsert(request.body)))
-		.then((dbPacket: OkPacket) => response.status(201).json({ insertId: dbPacket.insertId }))
+		.then(() => databaseQuerry('INSERT INTO categories SET ?', insertCategory))
+		.then((dbPacket: OkPacket) => response.status(201).json({ ...insertCategory, categoryId: dbPacket.insertId }))
 		.then(() => logger.log('Addcategory success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
@@ -84,12 +85,13 @@ export const changeCategory = (request: Request, response: Response): void => {
 		return errorHandler(response, 400);
 	}
 
+	const insertCategory = Category.getDBInsert(request.body);
 	getCategoryById(categoryId)
 		.then(() => {
 			const sqlChangeCategory = 'UPDATE categories SET ? WHERE categoryId = ?';
-			return databaseQuerry(sqlChangeCategory, [Category.getDBInsert(request.body), categoryId]);
+			return databaseQuerry(sqlChangeCategory, [insertCategory, categoryId]);
 		})
-		.then(() => response.status(201).json(defaultHttpResponseMessages.get(201)))
+		.then(() => response.status(201).json(insertCategory))
 		.then(() => logger.log('Changecategory success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
@@ -113,7 +115,7 @@ export const getCategorie = (request: Request, response: Response): void => {
 
 	const sqlGetCategorie = 'SELECT * FROM categories WHERE categoryId = ?';
 	databaseQuerry(sqlGetCategorie, categoryId)
-		.then((categories: Category[]) => response.status(200).json(categories))
+		.then((categorie: Category[]) => response.status(200).json(categorie[0]))
 		.then(() => logger.log('Getcategory success!'))
 		.catch(err => errorHandler(response, 500, err));
 };

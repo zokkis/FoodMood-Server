@@ -1,4 +1,4 @@
-interface IDBInsertMessage {
+export interface IDBInsertMessage {
 	senderId: number;
 	receiverId: number;
 	message: string;

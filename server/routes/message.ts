@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { OkPacket } from 'mysql';
 import { defaultHttpResponseMessages } from '../models/httpResponse';
-import { Message } from '../models/message';
+import { IDBInsertMessage, Message } from '../models/message';
 import { databaseQuerry, getUserById } from '../utils/database';
 import { errorHandler, RequestError } from '../utils/error';
 import Logger from '../utils/logger';
@@ -10,15 +10,13 @@ import { isPositiveSaveInteger } from '../utils/validator';
 const logger = new Logger('Message');
 
 export const getMessagesForMe = (request: Request, response: Response): void => {
-	let messages: Message[];
 	const sqlGetMessages = 'SELECT * FROM messages WHERE receiverId = ?';
 	databaseQuerry(sqlGetMessages, request.user.userId)
-		.then((dbMessages: Message[]) => messages = dbMessages)
+		.then((messages: Message[]) => response.status(200).json(messages))
 		.then(() => {
 			const sqlDeleteMessage = 'DELETE FROM messages WHERE receiverId = ?';
 			return databaseQuerry(sqlDeleteMessage, request.user.userId);
 		})
-		.then(() => response.status(200).json(messages))
 		.then(() => logger.log('Getmessages success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
@@ -36,13 +34,14 @@ export const sendMessage = (request: Request, response: Response): void => {
 		return errorHandler(response, 400);
 	}
 
+	delete request.body.messageId;
+	const insertMessage = Message.getForDB({ ...request.body, senderId: request.user.userId });
 	getUserById(request.body.receiverId)
 		.then(() => {
-			delete request.body.messageId;
 			const addMessage = 'INSERT INTO messages SET ?';
-			return databaseQuerry(addMessage, Message.getForDB({ ...request.body, senderId: request.user.userId }));
+			return databaseQuerry(addMessage, insertMessage);
 		})
-		.then((dbPacket: OkPacket) => response.status(201).json({ insertId: dbPacket.insertId }))
+		.then((dbPacket: OkPacket) => response.status(201).json({ ...insertMessage, messageId: dbPacket.insertId }))
 		.then(() => logger.log('Send message success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };
@@ -56,6 +55,7 @@ export const editMessage = (request: Request, response: Response): void => {
 		delete request.body.receiverId;
 	}
 
+	let insertMessage: IDBInsertMessage;
 	const sqlGetMessage = 'SELECT senderId, receiverId, message FROM messages WHERE messageId = ?';
 	databaseQuerry(sqlGetMessage, request.body.messageId)
 		.then((message: Message[]) => {
@@ -72,10 +72,11 @@ export const editMessage = (request: Request, response: Response): void => {
 			updateData.receiverId = request.body.receiverId ?? updateData.receiverId;
 			updateData.message = request.body.message ?? updateData.message;
 
+			insertMessage = updateData;
 			const sqlUpdateMessage = 'UPDATE messages SET ? WHERE messageId = ?';
-			return databaseQuerry(sqlUpdateMessage, [updateData, request.body.messageId]);
+			return databaseQuerry(sqlUpdateMessage, [insertMessage, request.body.messageId]);
 		})
-		.then(() => response.status(201).json(defaultHttpResponseMessages.get(201)))
+		.then(() => response.status(201).json({ ...insertMessage, messageId: request.body.messageId }))
 		.then(() => logger.log('Edit message success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };

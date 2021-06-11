@@ -3,7 +3,7 @@ import { OkPacket } from 'mysql';
 import { Food } from '../models/food';
 import { defaultHttpResponseMessages } from '../models/httpResponse';
 import { DOCUMENT_PATH } from '../utils/constans';
-import { databaseQuerry, getCategoryById, getEntitiesWithId, getEntityWithId, isValideSQLTimestamp } from '../utils/database';
+import { databaseQuerry, getCategoryById, getEntityWithId, isValideSQLTimestamp } from '../utils/database';
 import { errorHandler, RequestError } from '../utils/error';
 import { deletePath } from '../utils/fileAndFolder';
 import Logger from '../utils/logger';
@@ -27,8 +27,8 @@ export const getFoodById = (request: Request, response: Response): void => {
 		return errorHandler(response, 400);
 	}
 
-	getEntitiesWithId(request.params.id)
-		.then((data: Food[]) => response.status(200).json(data))
+	getEntityWithId(request.params.id)
+		.then((data: Food) => response.status(200).json(data))
 		.then(() => logger.log('Getfood success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
@@ -38,6 +38,7 @@ export const addFood = (request: Request, response: Response): void => {
 		return errorHandler(response, 400);
 	}
 
+	const insertFood = Food.getDBFood(request.body);
 	getCategoryById(request.body.categoryId)
 		.then(() => {
 			const rating = request.body.rating;
@@ -51,8 +52,8 @@ export const addFood = (request: Request, response: Response): void => {
 				throw new RequestError(404);
 			}
 		})
-		.then(() => databaseQuerry('INSERT INTO entity SET ?', Food.getDBFood(request.body)))
-		.then((dbPacket: OkPacket) => response.status(200).json({ entityId: dbPacket.insertId }))
+		.then(() => databaseQuerry('INSERT INTO entity SET ?', insertFood))
+		.then((dbPacket: OkPacket) => response.status(200).json({ ...insertFood, entityId: dbPacket.insertId }))
 		.then(() => logger.log('Addfood success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
@@ -62,6 +63,7 @@ export const changeFood = (request: Request, response: Response): void => {
 		return errorHandler(response, 400);
 	}
 
+	let insertFood: Food;
 	getEntityWithId(request.params.id)
 		.then((entity: Food) => {
 			const newRating = request.body.rating;
@@ -79,10 +81,11 @@ export const changeFood = (request: Request, response: Response): void => {
 			return entity;
 		})
 		.then((entity: Food) => {
+			insertFood = Food.getDBFood({ ...entity, ...request.body });
 			const sqlChangeFood = 'UPDATE entity SET ? WHERE entityId = ?';
-			return databaseQuerry(sqlChangeFood, [Food.getDBFood({ ...entity, ...request.body }), request.params.id]);
+			return databaseQuerry(sqlChangeFood, [insertFood, request.params.id]);
 		})
-		.then(() => response.status(201).json(defaultHttpResponseMessages.get(201)))
+		.then(() => response.status(201).json(insertFood))
 		.then(() => logger.log('Changefood success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };

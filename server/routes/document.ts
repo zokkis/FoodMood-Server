@@ -37,7 +37,7 @@ export const addDocument = (request: Request, response: Response): void => {
 			const sqlCreateDocument = 'INSERT INTO documents SET ?';
 			return databaseQuerry(sqlCreateDocument, { type, name: request.file.filename, entityId: request.body.entityId });
 		})
-		.then((dbPacket: OkPacket) => response.status(201).json({ insertId: dbPacket.insertId }))
+		.then((dbPacket: OkPacket) => response.status(201).json({ type, documentId: dbPacket.insertId }))
 		.then(() => logger.log(`Add${type} success`))
 		.catch(err => {
 			deletePath(request.file.path);
