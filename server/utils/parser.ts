@@ -14,8 +14,8 @@ export const tryParse = <T>(toParse: unknown): T | undefined => {
 // [lte], [gte], [exists], [regex], [before], and [after] -> gte smaller
 // -> price= lte:15; price= gte:5 -> price= [lte:15, gte:5]
 
-export type queryParmsType = 'lte' | 'gte' | /* 'exists' | */ 'regex' | 'before' | 'after';
-export const queryParms: queryParmsType[] = ['lte', 'gte', /* 'exists', */ 'regex', 'before', 'after'];
+export type queryParmsType = 'lte' | 'gte' | /* 'exists' | */ 'regex' | 'before' | 'after' | 'eql';
+export const queryParms: queryParmsType[] = ['lte', 'gte', /* 'exists', */ 'regex', 'before', 'after', 'eql'];
 
 export type query = { [val: string]: { [val in queryParmsType]: string } };
 
@@ -89,6 +89,9 @@ export const getSQLAndData = (query: { [key: string]: unknown }, clazz: any): { 
 						break;
 					case 'regex':
 						sql += ` ${key} REGEXP ?`;
+						break;
+					case 'eql':
+						sql += ` ${key} = ?`;
 						break;
 					default:
 						continue;
