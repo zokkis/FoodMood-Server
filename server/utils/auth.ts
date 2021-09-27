@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { NextFunction, Request, request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { LightUser, User } from '../models/user';
 import { getUserByUsername } from '../utils/database';
 import { addCachedUser, setNewCacheTime } from './cachedUser';
@@ -20,14 +20,19 @@ export const checkAuth = (request: Request, response: Response, next: NextFuncti
 		return errorHandler(response, 401);
 	}
 
-	checkAuthOf(username, password, response, next);
+	checkAuthOf(username, password)
+		.then(user => {
+			request.user = user;
+			next();
+		})
+		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };
 
-const checkAuthOf = async (username: string, password: string, response: Response, next: NextFunction) => {
+const checkAuthOf = (username: string, password: string): Promise<LightUser> => {
 	let user: User;
 
-	getUserByUsername(username, false)
-		.then((dbUser: User) => {
+	return getUserByUsername(username, false)
+		.then(dbUser => {
 			user = dbUser;
 			return bcrypt.compare(password, user.password);
 		})
@@ -38,8 +43,6 @@ const checkAuthOf = async (username: string, password: string, response: Respons
 			const isNew = !user.cachedTime;
 			isNew ? addCachedUser(user) : setNewCacheTime(user);
 			logger.log(isNew ? 'Auth success' : 'Cached auth success');
-			request.user = LightUser.fromUser(user);
-			next();
-		})
-		.catch(err => errorHandler(response, err.statusCode || 500, err));
+			return LightUser.fromUser(user);
+		});
 };

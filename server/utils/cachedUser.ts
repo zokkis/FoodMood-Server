@@ -1,7 +1,9 @@
 import { Permission } from '../models/permission';
 import { ShoppingList } from '../models/shoppingList';
 import { User } from '../models/user';
+import Logger from './logger';
 
+const logger = new Logger('CachedUser');
 const cachedUsers: User[] = [];
 
 export const addCachedUser = (user: User): void => {
@@ -53,11 +55,12 @@ export const getCachedUserById = (id: number | undefined): User | undefined => {
 setInterval(() => {
 	const currentTime = Date.now();
 	cachedUsers
-		.filter(user => currentTime - (user.cachedTime || 0) > 300000) //5mins
+		.filter(user => currentTime - (user.cachedTime || 0) > 300000) // 5mins
 		.forEach(user => {
 			try {
 				deleteCachedUser(user.username);
-				// eslint-disable-next-line no-empty
-			} catch { }
+			} catch (err) {
+				logger.error(err);
+			}
 		});
-}, 200000);
+}, 150000);

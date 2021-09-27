@@ -1,4 +1,4 @@
-import { tryParse } from '../utils/validator';
+import { tryParse } from '../utils/parser';
 import { Permission } from './permission';
 import { ShoppingList } from './shoppingList';
 
@@ -41,9 +41,9 @@ export class User implements IUser {
 			user?.userId || -1,
 			user?.username || '',
 			user?.password || '',
-			tryParse(user?.permissions) || user?.permissions,
-			tryParse(user?.favorites) || user?.favorites,
-			tryParse(user?.shoppingList) || user?.shoppingList,
+			tryParse<Permission>(user?.permissions) || user?.permissions,
+			tryParse<number[]>(user?.favorites) || user?.favorites,
+			tryParse<ShoppingList[]>(user?.shoppingList) || user?.shoppingList,
 			user?.lastEdit,
 			user?.cachedTime
 		);
@@ -56,16 +56,17 @@ export class LightUser implements ILightUser {
 		public username: string,
 		public permissions: Permission = { hasDefault: true },
 		public favorites: number[] = [],
-		public shoppingList: ShoppingList[] = []) {
+		public shoppingList: ShoppingList[] = [],
+		public lastEdit?: string) {
 	}
 
 	public static fromUser(user: User | IUser): LightUser {
 		return new LightUser(
 			user.userId,
 			user.username,
-			typeof user.permissions === 'string' ? tryParse(user.permissions) || user.permissions : user.permissions,
-			typeof user.favorites === 'string' ? tryParse(user.favorites) || user.favorites : user.favorites,
-			typeof user.shoppingList === 'string' ? tryParse(user.shoppingList) || user.shoppingList : user.shoppingList
+			tryParse<Permission>(user.permissions) || user.permissions,
+			tryParse<number[]>(user.favorites) || user.favorites,
+			tryParse<ShoppingList[]>(user.shoppingList) || user.shoppingList
 		);
 	}
 

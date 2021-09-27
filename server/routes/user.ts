@@ -5,10 +5,11 @@ import { defaultHttpResponseMessages } from '../models/httpResponse';
 import { ShoppingList } from '../models/shoppingList';
 import { LightUser, User } from '../models/user';
 import { deleteCachedUser, updateCachedUsersPropety } from '../utils/cachedUser';
-import { databaseQuerry, getEntityWithId, getUserByUsername, isValideSQLTimestamp } from '../utils/database';
+import { databaseQuerry, getEntityWithId, getUserByUsername } from '../utils/database';
 import { errorHandler, RequestError } from '../utils/error';
 import Logger from '../utils/logger';
-import { isPositiveSaveInteger, isValidePassword, isValideUsername } from '../utils/validator';
+import { getSQLAndData } from '../utils/parser';
+import { isPositiveSaveInteger, isValidePassword, isValideSQLTimestamp, isValideUsername } from '../utils/validator';
 
 const logger = new Logger('User');
 
@@ -19,8 +20,8 @@ export const register = (request: Request, response: Response): void => {
 
 	getUserByUsername(request.body.username, false, true)
 		.then(() => bcrypt.hash(request.body.password, 10))
-		.then((salt: string) => databaseQuerry('INSERT INTO users SET ?', LightUser.getDBInsertUser({ username: request.body.username, password: salt })))
-		.then((user: OkPacket) => response.status(201).json({ userId: user.insertId }))
+		.then(salt => databaseQuerry<OkPacket>('INSERT INTO users SET ?', LightUser.getDBInsertUser({ username: request.body.username, password: salt })))
+		.then(user => response.status(201).json({ userId: user.insertId }))
 		.then(() => logger.log('Register success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };
@@ -36,10 +37,10 @@ export const changePassword = (request: Request, response: Response): void => {
 
 	let password: string;
 	bcrypt.hash(request.body.password, 10)
-		.then((salt: string) => {
+		.then(salt => {
 			password = salt;
 			const sqlChangePassword = 'UPDATE users SET password = ? WHERE username = ?';
-			return databaseQuerry(sqlChangePassword, [salt, request.user.username]);
+			return databaseQuerry<OkPacket>(sqlChangePassword, [salt, request.user.username]);
 		})
 		.then(() => updateCachedUsersPropety(request.user.username, 'password', password))
 		.then(() => response.status(201).json(defaultHttpResponseMessages.get(201)))
@@ -55,7 +56,7 @@ export const changeUsername = (request: Request, response: Response): void => {
 	getUserByUsername(request.body.username, false, true)
 		.then(() => {
 			const sqlChangeUsername = 'UPDATE users SET username = ? WHERE username = ?';
-			return databaseQuerry(sqlChangeUsername, [request.body.username, request.user.username]);
+			return databaseQuerry<OkPacket>(sqlChangeUsername, [request.body.username, request.user.username]);
 		})
 		.then(() => updateCachedUsersPropety(request.user.username, 'username', request.body.username))
 		.then(() => response.status(201).json(defaultHttpResponseMessages.get(201)))
@@ -70,7 +71,7 @@ export const logout = (request: Request, response: Response): void => {
 
 export const deleteUser = (request: Request, response: Response): void => {
 	const sqlDeleteUser = 'DELETE FROM users WHERE username = ?';
-	databaseQuerry(sqlDeleteUser, request.user.username)
+	databaseQuerry<OkPacket>(sqlDeleteUser, request.user.username)
 		.then(serverStatus => {
 			deleteCachedUser(request.user.username);
 			if (serverStatus.affectedRows < 1) {
@@ -83,12 +84,10 @@ export const deleteUser = (request: Request, response: Response): void => {
 };
 
 export const getUsers = (request: Request, response: Response): void => {
-	const isValideQuery = isValideSQLTimestamp(request.query.lastEdit);
+	const { sql, queryData } = getSQLAndData(request.query, new LightUser(-1, ''));
 
-	let sqlGetUsers = 'SELECT username, userId FROM users';
-	sqlGetUsers += isValideQuery ? ' WHERE lastEdit >= ?' : '';
-	databaseQuerry(sqlGetUsers, isValideQuery ? request.body.lastEdit : undefined)
-		.then((users: User[]) => response.status(200).json(users))
+	databaseQuerry<User[]>('SELECT username, userId FROM users' + sql, queryData)
+		.then(users => response.status(200).json(users))
 		.then(() => logger.log('GetUsers success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };
@@ -101,13 +100,13 @@ export const getFavorites = (request: Request, response: Response): void => {
 
 	let sqlGetFavorites = 'SELECT favorites FROM users WHERE userId = ?';
 	sqlGetFavorites += isValideQuery ? ' AND WHERE lastEdit >= ?' : '';
-	databaseQuerry(sqlGetFavorites, [request.params.id, isValideQuery ? request.query.lastEdit : undefined])
+	databaseQuerry<User[]>(sqlGetFavorites, [request.params.id, isValideQuery ? request.query.lastEdit : undefined])
 		.then(favs => response.status(200).json(favs))
 		.then(() => logger.log('GetFavorites success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };
 
-export const addFavorite = async (request: Request, response: Response): Promise<void> => {
+export const addFavorite = (request: Request, response: Response): void => {
 	const foodId = Number(request.body.foodId);
 	if (!isPositiveSaveInteger(foodId) || request.user.favorites.includes(foodId)) {
 		return errorHandler(response, 400);
@@ -117,7 +116,7 @@ export const addFavorite = async (request: Request, response: Response): Promise
 	getEntityWithId(foodId)
 		.then(() => {
 			const sqlUpdateFavs = 'UPDATE users SET favorites = ? WHERE userId = ?';
-			return databaseQuerry(sqlUpdateFavs, [JSON.stringify(request.user.favorites), request.user.userId]);
+			return databaseQuerry<OkPacket>(sqlUpdateFavs, [JSON.stringify(request.user.favorites), request.user.userId]);
 		})
 		.then(() => updateCachedUsersPropety(request.user.username, 'favorites', request.user.favorites))
 		.then(() => response.status(201).json(defaultHttpResponseMessages.get(201)))
@@ -127,24 +126,21 @@ export const addFavorite = async (request: Request, response: Response): Promise
 
 export const deleteFavorite = (request: Request, response: Response): void => {
 	const foodId = Number(request.params.id);
-	if (!isPositiveSaveInteger(foodId)) {
-		return errorHandler(response, 400);
-	}
-	if (!request.user.favorites.includes(foodId)) {
+	if (!isPositiveSaveInteger(foodId) || !request.user.favorites.includes(foodId)) {
 		return errorHandler(response, 400);
 	}
 
 	request.user.favorites.splice(request.user.favorites.findIndex(fav => fav === foodId));
 
 	const sqlDeleteFav = 'UPDATE users SET favorites = ? WHERE userId = ?';
-	databaseQuerry(sqlDeleteFav, [JSON.stringify(request.user.favorites), request.user.userId])
+	databaseQuerry<OkPacket>(sqlDeleteFav, [JSON.stringify(request.user.favorites), request.user.userId])
 		.then(() => updateCachedUsersPropety(request.user.username, 'favorites', request.user.favorites))
 		.then(() => response.status(202).json(defaultHttpResponseMessages.get(202)))
 		.then(() => logger.log('Delete fav success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };
 
-export const addShoppingList = async (request: Request, response: Response): Promise<void> => {
+export const addShoppingList = (request: Request, response: Response): void => {
 	const foodId = Number(request.body.foodId);
 	const amount = Number(request.body.amount);
 	if (!isPositiveSaveInteger(foodId) || !isPositiveSaveInteger(amount)) {
@@ -166,7 +162,7 @@ export const addShoppingList = async (request: Request, response: Response): Pro
 	getEntityWithId(foodId)
 		.then(() => {
 			const sqlUpdateList = 'UPDATE users SET shoppingList = ? WHERE userId = ?';
-			return databaseQuerry(sqlUpdateList, [JSON.stringify(shoppingList), request.user.userId]);
+			return databaseQuerry<OkPacket>(sqlUpdateList, [JSON.stringify(shoppingList), request.user.userId]);
 		})
 		.then(() => updateCachedUsersPropety(request.user.username, 'shoppingList', shoppingList))
 		.then(() => response.status(201).json(defaultHttpResponseMessages.get(201)))
@@ -188,7 +184,7 @@ export const deleteShoppingList = (request: Request, response: Response): void =
 	shoppingList.splice(shoppingList.findIndex(list => list.id === foodId));
 
 	const sqlDeleteList = 'UPDATE users SET shoppingList = ? WHERE userId = ?';
-	databaseQuerry(sqlDeleteList, [JSON.stringify(shoppingList), request.user.userId])
+	databaseQuerry<OkPacket>(sqlDeleteList, [JSON.stringify(shoppingList), request.user.userId])
 		.then(() => updateCachedUsersPropety(request.user.username, 'shoppingList', shoppingList))
 		.then(() => response.status(202).json(defaultHttpResponseMessages.get(202)))
 		.then(() => logger.log('Delete shoppingList success!'))

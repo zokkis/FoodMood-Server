@@ -11,22 +11,19 @@ export default class Logger {
 	constructor(public prefix: string) {
 	}
 
-	// eslint-disable-next-line
-	log(...message: any[]): void {
+	log(...message: unknown[]): void {
 		const prefix = this.getLoggingPrefix('\x1b[37m', 'LOG');
 		!isProd && console.log(prefix, ...message, '\x1b[0m');
 		this.appendTo(logStream, prefix, message);
 	}
 
-	// eslint-disable-next-line
-	warn(...warn: any[]): void {
+	warn(...warn: unknown[]): void {
 		const prefix = this.getLoggingPrefix('\x1b[33m', 'WARN');
 		!isProd && console.warn(prefix, ...warn, '\x1b[0m');
 		this.appendTo(warnStream, prefix, warn);
 	}
 
-	// eslint-disable-next-line
-	error(...error: any[]): void {
+	error(...error: unknown[]): void {
 		const prefix = this.getLoggingPrefix('\x1b[31m', 'ERROR');
 		!isProd && console.error(prefix, ...error, '\x1b[0m');
 		this.appendTo(errorStream, prefix, error);
@@ -43,8 +40,7 @@ export default class Logger {
 		return `${color}[${date.getFullYear()}/${month}/${day}, ${hours}:${minutes}:${seconds}.${milliSeconds}] [${this.prefix}] [${loggingType}]`;
 	}
 
-	// eslint-disable-next-line
-	private appendTo(stream: fs.WriteStream, prefix: string, arr: any[]): void {
+	private appendTo(stream: fs.WriteStream, prefix: string, arr: unknown[]): void {
 		stream.write('\n' + prefix);
 		arr.forEach(a => {
 			const toWrite = typeof a !== 'object' ? a : JSON.stringify(a);

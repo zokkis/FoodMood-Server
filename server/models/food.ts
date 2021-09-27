@@ -11,6 +11,7 @@ interface IFood {
 	brand?: string;
 	percentage?: number;
 	contentVolume?: number;
+	barCode?: string;
 	lastEdit?: string;
 }
 
@@ -26,6 +27,7 @@ export class Food implements IFood {
 		public brand?: string,
 		public percentage?: number,
 		public contentVolume?: number,
+		public barCode?: string,
 		public lastEdit?: string) {
 	}
 
@@ -40,7 +42,9 @@ export class Food implements IFood {
 			json.price,
 			json.brand,
 			json.percentage,
-			json.contentVolume
+			json.contentVolume,
+			json.barCode,
+			json.lastEdit
 		);
 	}
 

@@ -3,21 +3,21 @@ import { OkPacket } from 'mysql';
 import { Food } from '../models/food';
 import { defaultHttpResponseMessages } from '../models/httpResponse';
 import { DOCUMENT_PATH } from '../utils/constans';
-import { databaseQuerry, getCategoryById, getEntityWithId, isValideSQLTimestamp } from '../utils/database';
+import { databaseQuerry, getCategoryById, getEntityWithId } from '../utils/database';
 import { errorHandler, RequestError } from '../utils/error';
 import { deletePath } from '../utils/fileAndFolder';
 import Logger from '../utils/logger';
-import { isPositiveSaveInteger, isValideRating, tryParse } from '../utils/validator';
+import { isPositiveSaveInteger, isValideRating } from '../utils/validator';
+import { getSQLAndData, tryParse } from '../utils/parser';
+import { IRating } from '../models/rating';
 
 const logger = new Logger('Food');
 
 export const getAllFoods = (request: Request, response: Response): void => {
-	const isValideQuery = isValideSQLTimestamp(request.query.lastEdit);
+	const { sql, queryData } = getSQLAndData(request.query, new Food('', -1, {}));
 
-	let sqlGetFoods = 'SELECT * FROM entity';
-	sqlGetFoods += isValideQuery ? ' WHERE lastEdit >= ?' : '';
-	databaseQuerry(sqlGetFoods, isValideQuery ? request.query.lastEdit : undefined)
-		.then((data: Food[]) => response.status(200).json(data))
+	databaseQuerry<Food[]>('SELECT * FROM entity' + sql, queryData)
+		.then(data => response.status(200).json(data))
 		.then(() => logger.log('Getfoods success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
@@ -28,7 +28,7 @@ export const getFoodById = (request: Request, response: Response): void => {
 	}
 
 	getEntityWithId(request.params.id)
-		.then((data: Food) => response.status(200).json(data))
+		.then(data => response.status(200).json(data))
 		.then(() => logger.log('Getfood success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
@@ -49,11 +49,11 @@ export const addFood = (request: Request, response: Response): void => {
 
 			const userId = request.user.userId;
 			if (!isValideRating(rating, userId)) {
-				throw new RequestError(404);
+				throw new RequestError(400);
 			}
 		})
-		.then(() => databaseQuerry('INSERT INTO entity SET ?', insertFood))
-		.then((dbPacket: OkPacket) => response.status(200).json({ ...insertFood, entityId: dbPacket.insertId }))
+		.then(() => databaseQuerry<OkPacket>('INSERT INTO entity SET ?', insertFood))
+		.then(dbPacket => response.status(200).json({ ...insertFood, entityId: dbPacket.insertId }))
 		.then(() => logger.log('Addfood success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
@@ -65,7 +65,7 @@ export const changeFood = (request: Request, response: Response): void => {
 
 	let insertFood: Food;
 	getEntityWithId(request.params.id)
-		.then((entity: Food) => {
+		.then(entity => {
 			const newRating = request.body.rating;
 
 			if (!newRating) {
@@ -80,10 +80,10 @@ export const changeFood = (request: Request, response: Response): void => {
 			changeRating(entity, request, userId);
 			return entity;
 		})
-		.then((entity: Food) => {
+		.then(entity => {
 			insertFood = Food.getDBFood({ ...entity, ...request.body });
 			const sqlChangeFood = 'UPDATE entity SET ? WHERE entityId = ?';
-			return databaseQuerry(sqlChangeFood, [insertFood, request.params.id]);
+			return databaseQuerry<OkPacket>(sqlChangeFood, [insertFood, request.params.id]);
 		})
 		.then(() => response.status(201).json(insertFood))
 		.then(() => logger.log('Changefood success!'))
@@ -96,7 +96,7 @@ export const deleteFood = (request: Request, response: Response): void => {
 	}
 
 	const sqlDeleteFood = 'DELETE FROM entity WHERE entityId = ?';
-	databaseQuerry(sqlDeleteFood, request.params.id)
+	databaseQuerry<OkPacket>(sqlDeleteFood, request.params.id)
 		.then(() => deletePath(`${DOCUMENT_PATH}/${request.params.id}/`))
 		.then(() => response.status(202).json(defaultHttpResponseMessages.get(202)))
 		.then(() => logger.log('Delete success!'))
@@ -109,10 +109,10 @@ export const rateFood = (request: Request, response: Response): void => {
 	}
 
 	getEntityWithId(request.params.id)
-		.then((food: Food) => {
+		.then(food => {
 			changeRating(food, request, request.user.userId);
 			const sqlChangeRating = 'UPDATE entity SET rating = ? WHERE entityId = ?';
-			return databaseQuerry(sqlChangeRating, [JSON.stringify(food.rating), request.params.id]);
+			return databaseQuerry<OkPacket>(sqlChangeRating, [JSON.stringify(food.rating), request.params.id]);
 		})
 		.then(() => response.status(201).json(defaultHttpResponseMessages.get(201)))
 		.then(() => logger.log('Delete success!'))
@@ -120,8 +120,7 @@ export const rateFood = (request: Request, response: Response): void => {
 };
 
 const changeRating = (entity: Food, request: Request, userId: number) => {
-	entity.rating = tryParse(entity.rating);
+	entity.rating = tryParse<IRating>(entity.rating) || {};
 	entity.rating[userId] = request.body.rating[userId];
 	delete request.body.rating;
 };
-

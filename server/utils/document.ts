@@ -16,6 +16,7 @@ export const multerStorage = multer.diskStorage({
 	},
 	filename: function (request, file, cb) {
 		const filename = `${file.fieldname}_${Date.now()}_${Math.round(Math.random() * 1E9)}${file.originalname.substring(file.originalname.lastIndexOf('.'))}`;
+		request.file = request.file || {} as Express.Multer.File;
 		request.file.filename = filename;
 		request.file.path = file.folder + '/' + filename;
 		cb(null, filename);
@@ -24,7 +25,7 @@ export const multerStorage = multer.diskStorage({
 
 export const checkFileAndMimetype = (mimetype: string) => {
 	return async function (request: Request, file: Express.Multer.File, callback: multer.FileFilterCallback): Promise<void> {
-		if (request.fileValidateError || request.files?.length > 1) {
+		if (request.fileValidateError || (Array.isArray(request.files) && request.files.length > 1)) {
 			request.fileValidateError = `Only one ${mimetype}!`;
 			return callback(null, false);
 		} else if (!file.mimetype.includes(mimetype)) {

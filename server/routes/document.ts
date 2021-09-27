@@ -27,20 +27,20 @@ export const addDocument = (request: Request, response: Response): void => {
 	}
 
 	const sqlCheckEntitiyId = 'SELECT entityId FROM documents WHERE entityId = ? AND type = ?';
-	databaseQuerry(sqlCheckEntitiyId, [request.body.entityId, type])
-		.then((data: Document[]) => {
+	databaseQuerry<Document[]>(sqlCheckEntitiyId, [request.body.entityId, type])
+		.then(data => {
 			if (data.length >= permissionDetailsOfType
 				&& getPermissionIdsToCheck(request.user.permissions).indexOf(getPermissionDetailsOfType('ADMIN').id) === -1) {
 				throw new RequestError(403, `Too much ${type}s on this entity!`);
 			}
 
 			const sqlCreateDocument = 'INSERT INTO documents SET ?';
-			return databaseQuerry(sqlCreateDocument, { type, name: request.file.filename, entityId: request.body.entityId });
+			return databaseQuerry<OkPacket>(sqlCreateDocument, { type, name: request.file?.filename, entityId: request.body.entityId });
 		})
-		.then((dbPacket: OkPacket) => response.status(201).json({ type, documentId: dbPacket.insertId }))
+		.then(dbPacket => response.status(201).json({ type, documentId: dbPacket.insertId }))
 		.then(() => logger.log(`Add${type} success`))
 		.catch(err => {
-			deletePath(request.file.path);
+			deletePath(request.file?.path);
 			errorHandler(response, err.statusCode || 500, err);
 		});
 };
@@ -51,8 +51,8 @@ export const getDocument = (request: Request, response: Response): void => {
 	}
 
 	const sqlGetImage = 'SELECT name, entityId FROM documents WHERE documentId = ?';
-	databaseQuerry(sqlGetImage, request.params.id)
-		.then((images: Document[]) => {
+	databaseQuerry<Document[]>(sqlGetImage, request.params.id)
+		.then(images => {
 			if (images.length !== 1) {
 				throw new RequestError(400);
 			}
@@ -70,16 +70,16 @@ export const deleteDocument = (request: Request, response: Response): void => {
 	let pathToDelete: string;
 
 	const sqlGetDocumentName = 'SELECT name, entityId FROM documents WHERE documentId = ?';
-	databaseQuerry(sqlGetDocumentName, request.params.id)
-		.then((data: Document[]) => {
+	databaseQuerry<Document[]>(sqlGetDocumentName, request.params.id)
+		.then(data => {
 			if (data.length !== 1) {
-				throw new RequestError(400);
+				throw new RequestError(404);
 			}
 			pathToDelete = `${DOCUMENT_PATH}/${data[0].entityId}/${data[0].name}`;
 		})
 		.then(() => {
 			const sqlDeleteDocument = 'DELETE FROM documents WHERE documentId = ?';
-			return databaseQuerry(sqlDeleteDocument, request.params.id);
+			return databaseQuerry<OkPacket>(sqlDeleteDocument, request.params.id);
 		})
 		.then(() => deletePath(pathToDelete))
 		.then(() => response.status(202).json(defaultHttpResponseMessages.get(202)))

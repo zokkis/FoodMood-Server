@@ -14,8 +14,8 @@ export const checkFoodIds = (request: Request, response: Response): void => {
 		return errorHandler(response, 400);
 	}
 
-	databaseQuerry('SELECT entityId FROM entity WHERE entityId IN ' + JSON.stringify(ids).replace('[', '(').replace(']', ')'))
-		.then((entities: Food[]) => {
+	databaseQuerry<Food[]>('SELECT entityId FROM entity WHERE entityId IN ' + JSON.stringify(ids).replace('[', '(').replace(']', ')'))
+		.then(entities => {
 			const foodIds = entities.map(ent => ent.entityId);
 			response.status(200).json(ids.filter(id => !foodIds.includes(id)));
 		})
