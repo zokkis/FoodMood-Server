@@ -17,12 +17,7 @@ export const addCategory = (request: Request, response: Response): void => {
 	}
 
 	const insertCategory = Category.getDBInsert(request.body);
-	getCategoryById(request.body.parentId, false, false)
-		.then(category => {
-			if (!category && request.body.parentId) {
-				throw new RequestError(400);
-			}
-		})
+	getCategoryById(insertCategory.parentId, !!insertCategory.parentId)
 		.then(() => databaseQuerry<OkPacket>('INSERT INTO categories SET ?', insertCategory))
 		.then(dbPacket => response.status(201).json({ ...insertCategory, categoryId: dbPacket.insertId }))
 		.then(() => logger.log('Addcategory success!'))
@@ -112,9 +107,8 @@ export const getCategory = (request: Request, response: Response): void => {
 		return errorHandler(response, 400);
 	}
 
-	const sqlGetCategorie = 'SELECT * FROM categories WHERE categoryId = ?';
-	databaseQuerry<Category[]>(sqlGetCategorie, categoryId)
-		.then(categories => response.status(200).json(categories[0]))
+	getCategoryById(categoryId)
+		.then(category => response.status(200).json(category))
 		.then(() => logger.log('Getcategory success!'))
 		.catch(err => errorHandler(response, 500, err));
 };

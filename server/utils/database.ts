@@ -78,7 +78,7 @@ export const getUserById = (id: number): Promise<User> => {
 export const getCategoryById = (id: number | string | undefined, showErrorOnEmpty = true, showErrorOnFill = false): Promise<Category> => {
 	/* eslint-disable indent */
 	return !id
-		? new Promise((_resolve, reject) => reject())
+		? new Promise((resolve, reject) => (showErrorOnEmpty ? reject() : resolve(new Category(-1, ''))))
 		: databaseQuerry<Category[]>('SELECT * FROM categories WHERE categoryId = ?', id) //
 				.then(categories => {
 					if ((categories.length === 0 && showErrorOnEmpty) || (categories.length > 0 && showErrorOnFill)) {
