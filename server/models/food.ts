@@ -28,10 +28,10 @@ export class Food implements IFood {
 		public percentage?: number,
 		public contentVolume?: number,
 		public barCode?: string,
-		public lastEdit?: string) {
-	}
+		public lastEdit?: string
+	) {}
 
-	public static getFromJson(json: Food | IFood): IFood {
+	static getFromJson(json: Food | IFood): IFood {
 		return new Food(
 			json.title,
 			json.categoryId,
@@ -48,7 +48,7 @@ export class Food implements IFood {
 		);
 	}
 
-	public static getDBFood(json: Food | IFood): IFood {
+	static getDBFood(json: Food | IFood): IFood {
 		const food = this.getFromJson(json);
 		delete food.entityId;
 		delete food.lastEdit;

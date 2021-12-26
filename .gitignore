@@ -8,8 +8,9 @@
 ## own
 ##############################
 *.pem
+*.log
 /node_modules
 /private_files
-*.log
 /private
+/public
 /dist

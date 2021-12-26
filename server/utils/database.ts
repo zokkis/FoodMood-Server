@@ -8,23 +8,22 @@ import { getCachedUserById, getCachedUserByName } from './cachedUser';
 import { RequestError } from './error';
 
 const logger = new Logger('Database');
-const db = mysql.createConnection(sqlConfigs);
-
-db.connect(err => {
-	if (err) {
-		throw err;
-	}
-	logger.log('MySQL connected...');
-});
+const dbPool = mysql.createPool(sqlConfigs);
 
 export const databaseQuerry = <T>(sql: string, data: unknown = undefined): Promise<T> => {
 	return new Promise((resolve, reject) =>
-		db.query(sql, data, (err, result) => {
+		dbPool.getConnection((err, connection) => {
 			if (err) {
 				logger.error(err);
 				return reject(err);
 			}
-			resolve(result);
+			connection.query(sql, data, (err, result) => {
+				if (err) {
+					logger.error(err);
+					return reject(err);
+				}
+				resolve(result);
+			});
 		})
 	);
 };
@@ -34,53 +33,58 @@ export const getEntitiesWithId = (id: number | string): Promise<Food[]> => {
 	return databaseQuerry<Food[]>(sqlGetFoods, id);
 };
 
-export const getEntityWithId = (id: number | string, errorOnEmpty = true, errorOnFill = false): Promise<Food> => {
+export const getEntityWithId = (id: number | string, showErrorOnEmpty = true, showErrorOnFill = false): Promise<Food> => {
 	const sqlGetFoods = 'SELECT * FROM entity WHERE entityId = ?';
-	return databaseQuerry<Food[]>(sqlGetFoods, id)
-		.then(foods => {
-			if ((foods.length === 0 && errorOnEmpty) || (foods.length > 0 && errorOnFill)) {
-				throw new RequestError(404);
-			}
-			return foods[0];
-		});
+	return databaseQuerry<Food[]>(sqlGetFoods, id).then(foods => {
+		if ((foods.length === 0 && showErrorOnEmpty) || (foods.length > 0 && showErrorOnFill)) {
+			throw new RequestError(404);
+		}
+		return foods[0];
+	});
 };
 
-export const getUserByUsername = (username: string, errorOnEmpty = true, errorOnFill = false): Promise<User> => {
+export const getUserByUsername = (username: string, showErrorOnEmpty = true, showErrorOnFill = false): Promise<User> => {
 	const cachedUser = getCachedUserByName(username);
 
+	/* eslint-disable indent */
 	return cachedUser
 		? new Promise(resolve => resolve(cachedUser))
-		: databaseQuerry<User[]>('SELECT * FROM users WHERE username like ?', username)
-			.then(users => {
-				if ((users.length === 0 && errorOnEmpty) || (users.length > 0 && errorOnFill)) {
-					throw new RequestError(errorOnEmpty ? 404 : 409);
-				}
-				return users[0]; // User.getDefaultUser(users[0]);
-			});
+		: databaseQuerry<User[]>('SELECT * FROM users WHERE username like ?', username) //
+				.then(users => {
+					if ((users.length === 0 && showErrorOnEmpty) || (users.length > 0 && showErrorOnFill)) {
+						throw new RequestError(showErrorOnEmpty ? 404 : 409);
+					}
+					return users[0]; // User.getDefaultUser(users[0]);
+				});
+	/* eslint-enable indent */
 };
 
 export const getUserById = (id: number): Promise<User> => {
 	const cachedUser = getCachedUserById(id);
 
+	/* eslint-disable indent */
 	return cachedUser
 		? new Promise(resolve => resolve(cachedUser))
-		: databaseQuerry<User[]>('SELECT * FROM users WHERE userId = ?', id)
-			.then(users => {
-				if (users.length !== 1) {
-					throw new RequestError(404);
-				}
-				return users[0]; // User.getDefaultUser(users[0]);
-			});
+		: databaseQuerry<User[]>('SELECT * FROM users WHERE userId = ?', id) //
+				.then(users => {
+					if (users.length !== 1) {
+						throw new RequestError(404);
+					}
+					return users[0]; // User.getDefaultUser(users[0]);
+				});
+	/* eslint-enable indent */
 };
 
-export const getCategoryById = (id: number | string | undefined, errorOnEmpty = true, errorOnFill = false): Promise<Category> => {
+export const getCategoryById = (id: number | string | undefined, showErrorOnEmpty = true, showErrorOnFill = false): Promise<Category> => {
+	/* eslint-disable indent */
 	return !id
 		? new Promise((_resolve, reject) => reject())
-		: databaseQuerry<Category[]>('SELECT * FROM categories WHERE categoryId = ?', id)
-			.then(categories => {
-				if ((categories.length === 0 && errorOnEmpty) || (categories.length > 0 && errorOnFill)) {
-					throw new RequestError(errorOnEmpty ? 404 : 409);
-				}
-				return categories[0];
-			});
+		: databaseQuerry<Category[]>('SELECT * FROM categories WHERE categoryId = ?', id) //
+				.then(categories => {
+					if ((categories.length === 0 && showErrorOnEmpty) || (categories.length > 0 && showErrorOnFill)) {
+						throw new RequestError(showErrorOnEmpty ? 404 : 409);
+					}
+					return categories[0];
+				});
+	/* eslint-enable indent */
 };

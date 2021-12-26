@@ -62,8 +62,8 @@ const queryStringParser = (value: string): { [val: string]: string } | undefined
 	return { [split[0]]: split[1] };
 };
 
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
-export const getSQLAndData = (query: { [key: string]: unknown }, clazz: any): { sql: string, queryData: unknown[] } => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const getSQLAndData = (query: { [key: string]: unknown }, clazz: any): { sql: string; queryData: unknown[] } => {
 	const parsedQuery = queryParser(query);
 	const queryData: unknown[] = [];
 	let sql = '';

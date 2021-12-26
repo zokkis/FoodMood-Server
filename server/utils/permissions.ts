@@ -1,11 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
-import { Permission, PermissionDetails, PermissionNamesType, PermissionsMap } from '../models/permission';
+import { Permission, PermissionDetails, PermissionNamesType, PERMISSIONS_MAP } from '../models/permission';
 import { errorHandler } from './error';
 import Logger from './logger';
 
 const logger = new Logger('Permissions');
 
-export const hasPerms = (...perms: PermissionNamesType[]): (request: Request, response: Response, next: NextFunction) => void => {
+export const hasPerms = (...perms: PermissionNamesType[]): ((request: Request, response: Response, next: NextFunction) => void) => {
 	return (request: Request, response: Response, next: NextFunction): void => {
 		logger.log('Check that', request.user.username, 'has', perms);
 
@@ -42,7 +42,7 @@ const getDefaultPermissionDetails = (): PermissionDetails[] => {
 
 const getAllPermissionDetails = (): PermissionDetails[] => {
 	const perms: PermissionDetails[] = [];
-	for (const name in PermissionsMap) {
+	for (const name in PERMISSIONS_MAP) {
 		perms.push(getPermissionDetailsOfType(name as PermissionNamesType));
 	}
 	return perms;
@@ -53,7 +53,7 @@ const getPermissionDetailsOfTypes = (type: PermissionNamesType[]): PermissionDet
 };
 
 export const getPermissionDetailsOfType = (type: PermissionNamesType): PermissionDetails => {
-	return PermissionsMap[type];
+	return PERMISSIONS_MAP[type];
 };
 
 export const getPermissionIdsToCheck = (permission: Permission): number[] => {

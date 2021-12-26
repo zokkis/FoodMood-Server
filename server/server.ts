@@ -11,7 +11,20 @@ import { addCategory, changeCategory, deleteCategory, getCategory, getCategories
 import { addDocument, deleteDocument, getDocument } from './routes/document';
 import { addFood, changeFood, deleteFood, getAllFoods, getFoodById, rateFood } from './routes/food';
 import { deleteMessage, editMessage, getMessagesForMe, getOwnMessages, sendMessage } from './routes/message';
-import { addFavorite, addShoppingList, changePassword, changeUsername, deleteFavorite, deleteShoppingList, deleteUser, getFavorites, getUsers, login, logout, register } from './routes/user';
+import {
+	addFavorite,
+	addShoppingList,
+	changePassword,
+	changeUsername,
+	deleteFavorite,
+	deleteShoppingList,
+	deleteUser,
+	getFavorites,
+	getUsers,
+	login,
+	logout,
+	register,
+} from './routes/user';
 import { checkFoodIds } from './routes/utils';
 import { checkAuth } from './utils/auth';
 import { CERT_PEM_PATH, isProd, KEY_PEM_PATH, LOG_PATH } from './utils/constans';
@@ -22,16 +35,23 @@ import { hasPerms } from './utils/permissions';
 const logger = new Logger('Server');
 const app = express();
 
-https.createServer({
-	key: fs.readFileSync(KEY_PEM_PATH),
-	cert: fs.readFileSync(CERT_PEM_PATH)
-}, app)
+https
+	.createServer(
+		{
+			key: fs.readFileSync(KEY_PEM_PATH),
+			cert: fs.readFileSync(CERT_PEM_PATH),
+		},
+		app
+	)
 	.listen(3000, () => logger.log('Server started!'));
 
 app.disable('x-powered-by');
 
-app.use(morgan('[:date[iso]] :remote-addr :remote-user :method :url :response-time ms',
-	{ stream: fs.createWriteStream(LOG_PATH + '/morgan.log', { flags: 'a' }) }));
+app.use(
+	morgan('[:date[iso]] :remote-addr :remote-user :method :url :response-time ms', {
+		stream: fs.createWriteStream(LOG_PATH + '/morgan.log', { flags: 'a' }),
+	})
+);
 app.use(cors());
 app.use(express.json());
 app.use(compression());
@@ -83,7 +103,8 @@ app.post('/foods/:id/rating', checkAuth, hasPerms('RATE_FOOD'), rateFood);
 
 app.put('/foods/:id/rating', checkAuth, hasPerms('RATE_FOOD'), rateFood);
 
-app.post('/images',
+app.post(
+	'/images',
 	checkAuth,
 	hasPerms('ADD_IMAGES'),
 	multer({ fileFilter: checkFileAndMimetype('image'), storage: multerStorage }).any(),
@@ -94,7 +115,8 @@ app.get('/images/:id', checkAuth, hasPerms('VIEW_IMAGES'), getDocument);
 
 app.delete('/images/:id', checkAuth, hasPerms('DELETE_IMAGES'), deleteDocument);
 
-app.post('/videos',
+app.post(
+	'/videos',
 	checkAuth,
 	hasPerms('ADD_VIDEOS'),
 	multer({ fileFilter: checkFileAndMimetype('video'), storage: multerStorage }).any(),

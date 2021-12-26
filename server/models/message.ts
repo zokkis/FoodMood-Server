@@ -2,7 +2,7 @@ export interface IDBInsertMessage {
 	senderId: number;
 	receiverId: number;
 	message: string;
-	edited?: boolean;
+	isEdited?: boolean;
 }
 
 interface IMessage {
@@ -10,7 +10,7 @@ interface IMessage {
 	senderId: number;
 	receiverId: number;
 	message: string;
-	edited?: boolean;
+	isEdited?: boolean;
 }
 
 export class Message implements IMessage {
@@ -19,16 +19,15 @@ export class Message implements IMessage {
 		public senderId: number,
 		public receiverId: number,
 		public message: string,
-		public edited?: boolean
-	) {
-	}
+		public isEdited?: boolean
+	) {}
 
-	public static getForDB(message: Message | IMessage): IDBInsertMessage {
+	static getForDB(message: Message | IMessage): IDBInsertMessage {
 		return {
 			senderId: message.senderId,
 			receiverId: message.receiverId,
 			message: message.message,
-			edited: !!message.edited
+			isEdited: !!message.isEdited,
 		};
 	}
 }

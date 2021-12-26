@@ -25,7 +25,11 @@ export const deleteCachedUser = (username: string | undefined): void => {
 	cachedUsers.splice(index);
 };
 
-export const updateCachedUsersPropety = (username: string | undefined, prop: keyof User, newValue: number | string | number[] | Permission | ShoppingList[]): void => {
+export const updateCachedUsersPropety = (
+	username: string | undefined,
+	prop: keyof User,
+	newValue: number | string | number[] | Permission | ShoppingList[]
+): void => {
 	if (!username || !prop || !newValue) {
 		throw new Error(`updateCachedUser - missing input - ${username}, ${prop}, ${newValue}`);
 	}

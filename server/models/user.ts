@@ -33,10 +33,10 @@ export class User implements IUser {
 		public favorites: number[] = [],
 		public shoppingList: ShoppingList[] = [],
 		public lastEdit?: string,
-		public cachedTime?: number) {
-	}
+		public cachedTime?: number
+	) {}
 
-	public static getDefaultUser(user?: User): User {
+	static getDefaultUser(user?: User): User {
 		return new User(
 			user?.userId || -1,
 			user?.username || '',
@@ -57,10 +57,10 @@ export class LightUser implements ILightUser {
 		public permissions: Permission = { hasDefault: true },
 		public favorites: number[] = [],
 		public shoppingList: ShoppingList[] = [],
-		public lastEdit?: string) {
-	}
+		public lastEdit?: string
+	) {}
 
-	public static fromUser(user: User | IUser): LightUser {
+	static fromUser(user: User | IUser): LightUser {
 		return new LightUser(
 			user.userId,
 			user.username,
@@ -70,13 +70,13 @@ export class LightUser implements ILightUser {
 		);
 	}
 
-	public static getDBInsertUser(user: { username: string, password: string }): IDBInsertUser {
+	static getDBInsertUser(user: { username: string; password: string }): IDBInsertUser {
 		return {
 			username: user.username,
 			password: user.password,
 			permissions: '{"hasDefault": true}',
 			favorites: '[]',
-			shoppingList: '[]'
+			shoppingList: '[]',
 		};
 	}
 }

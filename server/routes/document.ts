@@ -17,7 +17,9 @@ export const addDocument = (request: Request, response: Response): void => {
 	const type = request.file?.type ?? 'document';
 
 	if (request.fileValidateError || !isPositiveSaveInteger(request.body.entityId) || !request.file) {
-		if (request.file?.path) { deletePath(request.file.path); }
+		if (request.file?.path) {
+			deletePath(request.file.path);
+		}
 		return errorHandler(response, 400, request.fileValidateError);
 	}
 
@@ -29,8 +31,10 @@ export const addDocument = (request: Request, response: Response): void => {
 	const sqlCheckEntitiyId = 'SELECT entityId FROM documents WHERE entityId = ? AND type = ?';
 	databaseQuerry<Document[]>(sqlCheckEntitiyId, [request.body.entityId, type])
 		.then(data => {
-			if (data.length >= permissionDetailsOfType
-				&& getPermissionIdsToCheck(request.user.permissions).indexOf(getPermissionDetailsOfType('ADMIN').id) === -1) {
+			if (
+				data.length >= permissionDetailsOfType &&
+				getPermissionIdsToCheck(request.user.permissions).indexOf(getPermissionDetailsOfType('ADMIN').id) === -1
+			) {
 				throw new RequestError(403, `Too much ${type}s on this entity!`);
 			}
 

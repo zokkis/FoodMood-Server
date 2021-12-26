@@ -119,7 +119,7 @@ export const rateFood = (request: Request, response: Response): void => {
 		.catch(err => errorHandler(response, 500, err));
 };
 
-const changeRating = (entity: Food, request: Request, userId: number) => {
+const changeRating = (entity: Food, request: Request, userId: number): void => {
 	entity.rating = tryParse<IRating>(entity.rating) || {};
 	entity.rating[userId] = request.body.rating[userId];
 	delete request.body.rating;

@@ -8,19 +8,21 @@ import { isPositiveSaveInteger } from './validator';
 mkdirIfNotExist(DOCUMENT_PATH);
 
 export const multerStorage = multer.diskStorage({
-	destination: function (request, file, cb) {
+	destination: (request, file, cb) => {
 		const imageFolder = DOCUMENT_PATH + '/' + request.body.entityId;
 		mkdirIfNotExist(imageFolder);
 		file.folder = imageFolder;
 		cb(null, imageFolder);
 	},
-	filename: function (request, file, cb) {
-		const filename = `${file.fieldname}_${Date.now()}_${Math.round(Math.random() * 1E9)}${file.originalname.substring(file.originalname.lastIndexOf('.'))}`;
-		request.file = request.file || {} as Express.Multer.File;
+	filename: (request, file, cb) => {
+		const filename = `${file.fieldname}_${Date.now()}_${Math.round(Math.random() * 1e9)}${file.originalname.substring(
+			file.originalname.lastIndexOf('.')
+		)}`;
+		request.file = request.file || ({} as Express.Multer.File);
 		request.file.filename = filename;
 		request.file.path = file.folder + '/' + filename;
 		cb(null, filename);
-	}
+	},
 });
 
 export const checkFileAndMimetype = (mimetype: string) => {

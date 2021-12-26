@@ -6,8 +6,8 @@ const logger = new Logger('Errorhandler');
 
 export class RequestError extends Error {
 	constructor(
-		public statusCode: HTTPResponseTypes,
-		public error?: string,
+		public statusCode: HTTPResponseTypes, //
+		public error?: string
 	) {
 		super(error || defaultHttpResponseMessages.get(statusCode));
 	}

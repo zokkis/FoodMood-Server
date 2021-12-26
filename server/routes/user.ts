@@ -14,13 +14,20 @@ import { isPositiveSaveInteger, isValidePassword, isValideSQLTimestamp, isValide
 const logger = new Logger('User');
 
 export const register = (request: Request, response: Response): void => {
-	if (!isValideUsername(request.body.username) || !isValidePassword(request.body.password)) {
+	if (
+		request.body.password !== request.body.passwordRepeat ||
+		!isValideUsername(request.body.username) ||
+		!isValidePassword(request.body.password) ||
+		!isValidePassword(request.body.passwordRepeat)
+	) {
 		return errorHandler(response, 400);
 	}
 
 	getUserByUsername(request.body.username, false, true)
 		.then(() => bcrypt.hash(request.body.password, 10))
-		.then(salt => databaseQuerry<OkPacket>('INSERT INTO users SET ?', LightUser.getDBInsertUser({ username: request.body.username, password: salt })))
+		.then(salt =>
+			databaseQuerry<OkPacket>('INSERT INTO users SET ?', LightUser.getDBInsertUser({ username: request.body.username, password: salt }))
+		)
 		.then(user => response.status(201).json({ userId: user.insertId }))
 		.then(() => logger.log('Register success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
@@ -36,7 +43,8 @@ export const changePassword = (request: Request, response: Response): void => {
 	}
 
 	let password: string;
-	bcrypt.hash(request.body.password, 10)
+	bcrypt
+		.hash(request.body.password, 10)
 		.then(salt => {
 			password = salt;
 			const sqlChangePassword = 'UPDATE users SET password = ? WHERE username = ?';

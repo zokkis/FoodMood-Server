@@ -62,7 +62,7 @@ export const editMessage = (request: Request, response: Response): void => {
 			if (message.length !== 1) {
 				throw new RequestError(422);
 			}
-			const updateData = Message.getForDB({ ...message[0], edited: true });
+			const updateData = Message.getForDB({ ...message[0], isEdited: true });
 			if (updateData.senderId !== request.user.userId) {
 				throw new RequestError(403);
 			}

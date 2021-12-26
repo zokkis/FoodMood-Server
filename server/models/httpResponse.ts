@@ -13,5 +13,5 @@ export const defaultHttpResponseMessages: Map<HTTPResponseTypes, string> = new M
 	[422, 'Unprocessable Entity - important data is missing or wrong'],
 	[500, 'Internal server error'],
 	[502, 'Bad Gateway'],
-	[503, 'Service Unavailable']
+	[503, 'Service Unavailable'],
 ]);
