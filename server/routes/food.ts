@@ -53,7 +53,7 @@ export const addFood = (request: Request, response: Response): void => {
 			}
 		})
 		.then(() => databaseQuerry<OkPacket>('INSERT INTO entity SET ?', insertFood))
-		.then(dbPacket => response.status(200).json({ ...insertFood, entityId: dbPacket.insertId }))
+		.then(dbPacket => response.status(201).json({ ...insertFood, entityId: dbPacket.insertId }))
 		.then(() => logger.log('Addfood success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
