@@ -1,7 +1,7 @@
 module.exports = {
 	apps: [
 		{
-			name: 'server',
+			name: 'FoodMood',
 			script: './dist/server/server.js',
 			env: {
 				NODE_ENV: 'development',
