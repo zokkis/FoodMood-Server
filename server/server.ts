@@ -45,7 +45,7 @@ https
 		},
 		app
 	)
-	.listen(PORT || 3000, () => logger.log('Server started on port' + PORT + '!'));
+	.listen(PORT || 3000, () => logger.log('Server started on port ' + (PORT || 3000) + '!'));
 
 app.disable('x-powered-by');
 
@@ -57,6 +57,8 @@ app.use(
 app.use(cors());
 app.use(express.json());
 app.use(compression());
+
+app.use('/favicon.ico', express.static('images/favicon.ico'));
 
 app.get('/', (_request, response) => {
 	response.status(200).json('ONLINE');
