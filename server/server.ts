@@ -35,6 +35,8 @@ import { hasPerms } from './utils/permissions';
 const logger = new Logger('Server');
 const app = express();
 
+const PORT = process.env.PORT;
+
 https
 	.createServer(
 		{
@@ -43,7 +45,7 @@ https
 		},
 		app
 	)
-	.listen(3000, () => logger.log('Server started!'));
+	.listen(PORT || 3000, () => logger.log('Server started on port' + PORT + '!'));
 
 app.disable('x-powered-by');
 
