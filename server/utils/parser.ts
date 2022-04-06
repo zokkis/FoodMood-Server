@@ -115,7 +115,7 @@ export const getSQLAndData = (query: { [key: string]: unknown }, clazz: any): { 
 	}
 	queryPagination.forEach(data => {
 		const parsedData = parsedQuery[data];
-		if (typeof parsedData === 'string') {
+		if (isPositiveSafeInteger(parsedData)) {
 			switch (data) {
 				case 'limit':
 					sql += ' LIMIT ?';
