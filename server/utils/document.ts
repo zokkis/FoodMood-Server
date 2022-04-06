@@ -3,7 +3,7 @@ import multer from 'multer';
 import { DOCUMENT_PATH } from './constans';
 import { getEntitiesWithId } from './database';
 import { mkdirIfNotExist } from './fileAndFolder';
-import { isPositiveSaveInteger } from './validator';
+import { isPositiveSafeInteger } from './validator';
 
 mkdirIfNotExist(DOCUMENT_PATH);
 
@@ -33,7 +33,7 @@ export const checkFileAndMimetype = (mimetype: string) => {
 		} else if (!file.mimetype.includes(mimetype)) {
 			request.fileValidateError = `Must be ${mimetype}!`;
 			return callback(null, false);
-		} else if (!isPositiveSaveInteger(request.body.entityId)) {
+		} else if (!isPositiveSafeInteger(request.body.entityId)) {
 			request.fileValidateError = 'Error with id!';
 			return callback(null, false);
 		} else if ((await getEntitiesWithId(request.body.entityId)).length !== 1) {

@@ -1,4 +1,4 @@
-import { isStringArray, isValideSQLTimestamp } from './validator';
+import { isPositiveSafeInteger, isStringArray, isValideSQLTimestamp } from './validator';
 
 export const tryParse = <T>(toParse: unknown): T | undefined => {
 	try {
@@ -14,36 +14,42 @@ export const tryParse = <T>(toParse: unknown): T | undefined => {
 // [lte], [gte], [exists], [regex], [before], and [after] -> gte smaller
 // -> price= lte:15; price= gte:5 -> price= [lte:15, gte:5]
 
-export type queryParmsType = 'lte' | 'gte' | /* 'exists' | */ 'regex' | 'before' | 'after' | 'eql';
-export const queryParms: queryParmsType[] = ['lte', 'gte', /* 'exists', */ 'regex', 'before', 'after', 'eql'];
+type QueryPaginationType = 'limit' | 'offset';
+const queryPagination: QueryPaginationType[] = ['limit', 'offset'];
 
-export type query = { [val: string]: { [val in queryParmsType]: string } };
+type QueryParmsType = 'lte' | 'gte' | /* 'exists' | */ 'regex' | 'before' | 'after' | 'eql';
+const queryParms: QueryParmsType[] = ['lte', 'gte', /* 'exists', */ 'regex', 'before', 'after', 'eql'];
 
-export const queryParser = (toParse: { [key: string]: unknown }): query | undefined => {
+type QueryData = { [val in QueryParmsType]?: string }; // idk if this '?' is a good idea
+type Query = { [val: string]: QueryData | string };
+
+const queryParser = (toParse: { [key: string]: unknown }): Query | undefined => {
 	const keys = Object.keys(toParse || {});
 	if (!keys.length) {
 		return;
 	}
 
-	const ret: { [v: string]: { [v in queryParmsType]: string } } = {};
+	const ret: Query = {};
 	keys.forEach(key => {
 		const value = toParse[key];
 		if (typeof value !== 'string' && !isStringArray(value)) {
 			return;
 		}
 		const parsed = queryKeyValueParser(value);
-		if (parsed && Object.keys(parsed || {}).length) {
-			ret[key] = parsed as never;
+		if (parsed && Object.keys(parsed).length) {
+			ret[key] = parsed;
+		} else if (queryPagination.includes(key.toLowerCase() as QueryPaginationType) && isPositiveSafeInteger(value)) {
+			ret[key.toLowerCase()] = value as QueryData;
 		}
 	});
 	return ret;
 };
 
-const queryKeyValueParser = (value: string | string[]): { [val: string]: string } | undefined => {
+const queryKeyValueParser = (value: string | string[]): QueryData | undefined => {
 	if (typeof value === 'string') {
 		return queryStringParser(value);
 	} else {
-		let ret: { [val: string]: string } = {};
+		let ret = {} as QueryData;
 		value.forEach(val => {
 			const conv = queryStringParser(val);
 			if (conv) {
@@ -54,25 +60,29 @@ const queryKeyValueParser = (value: string | string[]): { [val: string]: string 
 	}
 };
 
-const queryStringParser = (value: string): { [val: string]: string } | undefined => {
-	const split = value.toLowerCase().split(':');
-	if (split.length !== 2 || !queryParms.includes(split[0] as queryParmsType)) {
+const queryStringParser = (value: string): QueryData | undefined => {
+	const split = value.toLowerCase().split(':') as [QueryParmsType, string];
+	if (split.length !== 2 || !queryParms.includes(split[0]) || !split[1]) {
 		return;
 	}
 	return { [split[0]]: split[1] };
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const getSQLAndData = (query: { [key: string]: unknown }, clazz: any): { sql: string; queryData: unknown[] } => {
+export const getSQLAndData = (query: { [key: string]: unknown }, clazz: any): { sql: string; queryData: (string | number)[] } => {
 	const parsedQuery = queryParser(query);
-	const queryData: unknown[] = [];
+	if (!parsedQuery) {
+		return { sql: '', queryData: [] };
+	}
+
+	const queryData: (string | number)[] = [];
 	let sql = '';
 
 	for (const key in parsedQuery) {
-		if (key in clazz) {
-			const queryKeys = parsedQuery[key];
+		const queryKeys = parsedQuery[key];
+		if (typeof queryKeys !== 'string' && key in clazz) {
 			for (const queryKey in queryKeys) {
-				const keyValue = queryKeys[queryKey as queryParmsType];
+				const keyValue = queryKeys[queryKey as QueryParmsType];
 				if (keyValue && key === 'lastEdit' && !isValideSQLTimestamp(keyValue)) {
 					continue;
 				}
@@ -81,25 +91,43 @@ export const getSQLAndData = (query: { [key: string]: unknown }, clazz: any): { 
 				switch (queryKey) {
 					case 'lte':
 					case 'before':
-						sql += ` ${key} <= ?`;
+						sql += ' ' + key + ' <= ?';
 						break;
 					case 'gte':
 					case 'after':
-						sql += ` ${key} >= ?`;
+						sql += ' ' + key + ' >= ?';
 						break;
 					case 'regex':
-						sql += ` ${key} REGEXP ?`;
+						sql += ' ' + key + ' REGEXP ?';
 						break;
 					case 'eql':
-						sql += ` ${key} = ?`;
+						sql += ' ' + key + ' = ?';
 						break;
 					default:
 						continue;
 				}
 
-				queryData.push(parsedQuery[key][queryKey]);
+				const parsedQueryData = parsedQuery[key];
+				const pushData = typeof parsedQueryData === 'string' ? parsedQueryData : parsedQueryData[queryKey];
+				pushData && queryData.push(pushData);
 			}
 		}
 	}
+	queryPagination.forEach(data => {
+		const parsedData = parsedQuery[data];
+		if (typeof parsedData === 'string') {
+			switch (data) {
+				case 'limit':
+					sql += ' LIMIT ?';
+					break;
+				case 'offset':
+					sql += ' OFFSET ?';
+					break;
+				default:
+					return;
+			}
+			queryData.push(Number(parsedData));
+		}
+	});
 	return { sql, queryData };
 };

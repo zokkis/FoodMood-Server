@@ -5,7 +5,7 @@ import { IDBInsertMessage, Message } from '../models/message';
 import { databaseQuerry, getUserById } from '../utils/database';
 import { errorHandler, RequestError } from '../utils/error';
 import Logger from '../utils/logger';
-import { isPositiveSaveInteger } from '../utils/validator';
+import { isPositiveSafeInteger } from '../utils/validator';
 
 const logger = new Logger('Message');
 
@@ -30,7 +30,7 @@ export const getOwnMessages = (request: Request, response: Response): void => {
 };
 
 export const sendMessage = (request: Request, response: Response): void => {
-	if (!request.body.message || !isPositiveSaveInteger(request.body.receiverId)) {
+	if (!request.body.message || !isPositiveSafeInteger(request.body.receiverId)) {
 		return errorHandler(response, 400);
 	}
 
@@ -47,8 +47,8 @@ export const sendMessage = (request: Request, response: Response): void => {
 };
 
 export const editMessage = (request: Request, response: Response): void => {
-	const isReceiverIdSave = isPositiveSaveInteger(request.body.receiverId);
-	if (!isPositiveSaveInteger(request.body.messageId) || (!request.body.message && !isReceiverIdSave)) {
+	const isReceiverIdSave = isPositiveSafeInteger(request.body.receiverId);
+	if (!isPositiveSafeInteger(request.body.messageId) || (!request.body.message && !isReceiverIdSave)) {
 		return errorHandler(response, 400);
 	}
 	if (!isReceiverIdSave) {
@@ -82,7 +82,7 @@ export const editMessage = (request: Request, response: Response): void => {
 };
 
 export const deleteMessage = (request: Request, response: Response): void => {
-	if (!isPositiveSaveInteger(request.params.id)) {
+	if (!isPositiveSafeInteger(request.params.id)) {
 		return errorHandler(response, 400);
 	}
 

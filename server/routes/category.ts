@@ -7,7 +7,7 @@ import { errorHandler, RequestError } from '../utils/error';
 import Logger from '../utils/logger';
 import { getSQLAndData } from '../utils/parser';
 import { getPermissionDetailsOfType, getPermissionIdsToCheck } from '../utils/permissions';
-import { isPositiveSaveInteger } from '../utils/validator';
+import { isPositiveSafeInteger } from '../utils/validator';
 
 const logger = new Logger('Category');
 
@@ -26,7 +26,7 @@ export const addCategory = (request: Request, response: Response): void => {
 
 export const deleteCategory = async (request: Request, response: Response): Promise<void> => {
 	const categoryId = Number(request.params.id);
-	if (!isPositiveSaveInteger(categoryId)) {
+	if (!isPositiveSafeInteger(categoryId)) {
 		return errorHandler(response, 400);
 	}
 
@@ -77,7 +77,7 @@ export const deleteCategory = async (request: Request, response: Response): Prom
 
 export const changeCategory = (request: Request, response: Response): void => {
 	const categoryId = Number(request.params.id);
-	if (!isPositiveSaveInteger(categoryId) || (!request.body.title && !isPositiveSaveInteger(request.body.parentId))) {
+	if (!isPositiveSafeInteger(categoryId) || (!request.body.title && !isPositiveSafeInteger(request.body.parentId))) {
 		return errorHandler(response, 400);
 	}
 
@@ -103,7 +103,7 @@ export const getCategories = (request: Request, response: Response): void => {
 
 export const getCategory = (request: Request, response: Response): void => {
 	const categoryId = Number(request.params.id);
-	if (!isPositiveSaveInteger(categoryId)) {
+	if (!isPositiveSafeInteger(categoryId)) {
 		return errorHandler(response, 400);
 	}
 

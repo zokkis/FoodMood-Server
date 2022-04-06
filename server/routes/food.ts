@@ -7,7 +7,7 @@ import { databaseQuerry, getCategoryById, getEntityWithId } from '../utils/datab
 import { errorHandler, RequestError } from '../utils/error';
 import { deletePath } from '../utils/fileAndFolder';
 import Logger from '../utils/logger';
-import { isPositiveSaveInteger, isValideRating } from '../utils/validator';
+import { isPositiveSafeInteger, isValideRating } from '../utils/validator';
 import { getSQLAndData, tryParse } from '../utils/parser';
 import { IRating } from '../models/rating';
 
@@ -23,7 +23,7 @@ export const getAllFoods = (request: Request, response: Response): void => {
 };
 
 export const getFoodById = (request: Request, response: Response): void => {
-	if (!isPositiveSaveInteger(request.params.id)) {
+	if (!isPositiveSafeInteger(request.params.id)) {
 		return errorHandler(response, 400);
 	}
 
@@ -34,7 +34,7 @@ export const getFoodById = (request: Request, response: Response): void => {
 };
 
 export const addFood = (request: Request, response: Response): void => {
-	if (!request.body.title || !isPositiveSaveInteger(request.body.categoryId)) {
+	if (!request.body.title || !isPositiveSafeInteger(request.body.categoryId)) {
 		return errorHandler(response, 400);
 	}
 
@@ -59,7 +59,7 @@ export const addFood = (request: Request, response: Response): void => {
 };
 
 export const changeFood = (request: Request, response: Response): void => {
-	if (!isPositiveSaveInteger(request.params.id) || Object.keys(request.body).length === 0) {
+	if (!isPositiveSafeInteger(request.params.id) || Object.keys(request.body).length === 0) {
 		return errorHandler(response, 400);
 	}
 
@@ -91,7 +91,7 @@ export const changeFood = (request: Request, response: Response): void => {
 };
 
 export const deleteFood = (request: Request, response: Response): void => {
-	if (!isPositiveSaveInteger(request.params.id)) {
+	if (!isPositiveSafeInteger(request.params.id)) {
 		return errorHandler(response, 400);
 	}
 
@@ -104,7 +104,7 @@ export const deleteFood = (request: Request, response: Response): void => {
 };
 
 export const rateFood = (request: Request, response: Response): void => {
-	if (!isPositiveSaveInteger(request.params.id) || isValideRating(request.body.rating, Number(request.params.id))) {
+	if (!isPositiveSafeInteger(request.params.id) || isValideRating(request.body.rating, Number(request.params.id))) {
 		return errorHandler(response, 400);
 	}
 

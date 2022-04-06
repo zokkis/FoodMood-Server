@@ -9,7 +9,7 @@ import { databaseQuerry, getEntityWithId, getUserByUsername } from '../utils/dat
 import { errorHandler, RequestError } from '../utils/error';
 import Logger from '../utils/logger';
 import { getSQLAndData } from '../utils/parser';
-import { isPositiveSaveInteger, isValidePassword, isValideSQLTimestamp, isValideUsername } from '../utils/validator';
+import { isPositiveSafeInteger, isValidePassword, isValideSQLTimestamp, isValideUsername } from '../utils/validator';
 
 const logger = new Logger('User');
 
@@ -93,6 +93,7 @@ export const deleteUser = (request: Request, response: Response): void => {
 
 export const getUsers = (request: Request, response: Response): void => {
 	const { sql, queryData } = getSQLAndData(request.query, new LightUser(-1, ''));
+	console.log(sql, queryData);
 
 	databaseQuerry<User[]>('SELECT username, userId FROM users' + sql, queryData)
 		.then(users => response.status(200).json(users))
@@ -101,7 +102,7 @@ export const getUsers = (request: Request, response: Response): void => {
 };
 
 export const getFavorites = (request: Request, response: Response): void => {
-	if (!isPositiveSaveInteger(request.params.id)) {
+	if (!isPositiveSafeInteger(request.params.id)) {
 		return errorHandler(response, 400);
 	}
 	const isValideQuery = isValideSQLTimestamp(request.query.lastEdit);
@@ -116,7 +117,7 @@ export const getFavorites = (request: Request, response: Response): void => {
 
 export const addFavorite = (request: Request, response: Response): void => {
 	const foodId = Number(request.body.foodId);
-	if (!isPositiveSaveInteger(foodId) || request.user.favorites.includes(foodId)) {
+	if (!isPositiveSafeInteger(foodId) || request.user.favorites.includes(foodId)) {
 		return errorHandler(response, 400);
 	}
 	request.user.favorites.push(foodId);
@@ -134,7 +135,7 @@ export const addFavorite = (request: Request, response: Response): void => {
 
 export const deleteFavorite = (request: Request, response: Response): void => {
 	const foodId = Number(request.params.id);
-	if (!isPositiveSaveInteger(foodId) || !request.user.favorites.includes(foodId)) {
+	if (!isPositiveSafeInteger(foodId) || !request.user.favorites.includes(foodId)) {
 		return errorHandler(response, 400);
 	}
 
@@ -151,7 +152,7 @@ export const deleteFavorite = (request: Request, response: Response): void => {
 export const addShoppingList = (request: Request, response: Response): void => {
 	const foodId = Number(request.body.foodId);
 	const amount = Number(request.body.amount);
-	if (!isPositiveSaveInteger(foodId) || !isPositiveSaveInteger(amount)) {
+	if (!isPositiveSafeInteger(foodId) || !isPositiveSafeInteger(amount)) {
 		return errorHandler(response, 400);
 	}
 
@@ -180,7 +181,7 @@ export const addShoppingList = (request: Request, response: Response): void => {
 
 export const deleteShoppingList = (request: Request, response: Response): void => {
 	const foodId = Number(request.body.foodId);
-	if (!isPositiveSaveInteger(foodId)) {
+	if (!isPositiveSafeInteger(foodId)) {
 		return errorHandler(response, 400);
 	}
 

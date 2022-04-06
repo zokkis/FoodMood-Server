@@ -1,10 +1,10 @@
 import { IRating } from '../models/rating';
 
-export const isPositiveSaveInteger = (toTest: unknown): boolean => {
-	if (!toTest) {
+export const isPositiveSafeInteger = (int: unknown): boolean => {
+	if (!int) {
 		return false;
 	}
-	const num = Number(toTest);
+	const num = Number(int);
 	return Number.isSafeInteger(num) && num > 0;
 };
 

@@ -3,14 +3,14 @@ import { Food } from '../models/food';
 import { databaseQuerry } from '../utils/database';
 import { errorHandler } from '../utils/error';
 import Logger from '../utils/logger';
-import { isPositiveSaveInteger } from '../utils/validator';
+import { isPositiveSafeInteger } from '../utils/validator';
 
 const logger = new Logger('Food-Util');
 
 // gets array of entityIds and send deleted or not know ids back
 export const checkFoodIds = (request: Request, response: Response): void => {
 	const ids: number[] = Array.from(new Set<number>(request.body.ids));
-	if (!ids || ids.length === 0 || !Array.isArray(ids) || ids.find(id => !isPositiveSaveInteger(id))) {
+	if (!ids || ids.length === 0 || !Array.isArray(ids) || ids.find(id => !isPositiveSafeInteger(id))) {
 		return errorHandler(response, 400);
 	}
 

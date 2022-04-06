@@ -9,14 +9,14 @@ import { errorHandler, RequestError } from '../utils/error';
 import { deletePath } from '../utils/fileAndFolder';
 import Logger from '../utils/logger';
 import { getPermissionDetailsOfType, getPermissionIdsToCheck } from '../utils/permissions';
-import { isPositiveSaveInteger } from '../utils/validator';
+import { isPositiveSafeInteger } from '../utils/validator';
 
 const logger = new Logger('Document');
 
 export const addDocument = (request: Request, response: Response): void => {
 	const type = request.file?.type ?? 'document';
 
-	if (request.fileValidateError || !isPositiveSaveInteger(request.body.entityId) || !request.file) {
+	if (request.fileValidateError || !isPositiveSafeInteger(request.body.entityId) || !request.file) {
 		if (request.file?.path) {
 			deletePath(request.file.path);
 		}
@@ -50,7 +50,7 @@ export const addDocument = (request: Request, response: Response): void => {
 };
 
 export const getDocument = (request: Request, response: Response): void => {
-	if (!isPositiveSaveInteger(request.params.id)) {
+	if (!isPositiveSafeInteger(request.params.id)) {
 		return errorHandler(response, 400);
 	}
 
@@ -68,7 +68,7 @@ export const getDocument = (request: Request, response: Response): void => {
 };
 
 export const deleteDocument = (request: Request, response: Response): void => {
-	if (!isPositiveSaveInteger(request.params.id)) {
+	if (!isPositiveSafeInteger(request.params.id)) {
 		return errorHandler(response, 400);
 	}
 	let pathToDelete: string;
