@@ -1,18 +1,30 @@
 import fs from 'fs';
+import Logger from './logger';
 
-export const mkdirIfNotExist = (path: string): void => {
-	if (!fs.existsSync(path)) {
-		fs.mkdirSync(path, { recursive: true });
-	}
+let logger: Logger;
+setTimeout(() => (logger = new Logger('FileAndFolder')));
+
+export const mkdirIfNotExist = (path: string, callback?: () => void): void => {
+	fs.access(path, notExist => {
+		if (notExist) {
+			fs.mkdir(path, { recursive: true }, err => {
+				if (err) {
+					logger?.error(err);
+				}
+				callback?.();
+			});
+		} else {
+			callback?.();
+		}
+	});
 };
 
-export const deletePath = (path?: string): void => {
-	if (!path || !fs.existsSync(path)) {
-		return;
-	}
-	fs.rm(path, { recursive: true, force: true }, err => {
+export const deletePath = (path: string, callback?: (err?: NodeJS.ErrnoException | null) => void): void => {
+	fs.access(path, err => {
 		if (err) {
-			throw err;
+			fs.rm(path, { recursive: true, force: true }, err => callback?.(err));
+		} else {
+			callback?.();
 		}
 	});
 };

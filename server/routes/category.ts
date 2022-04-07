@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 import { OkPacket } from 'mysql';
 import { Category } from '../models/category';
+import { Food } from '../models/food';
 import { defaultHttpResponseMessages } from '../models/httpResponse';
-import { databaseQuerry, getCategoryById, getEntitiesWithId } from '../utils/database';
+import { databaseQuerry, getCategoryById } from '../utils/database';
 import { errorHandler, RequestError } from '../utils/error';
 import Logger from '../utils/logger';
 import { getSQLAndData } from '../utils/parser';
@@ -24,29 +25,37 @@ export const addCategory = (request: Request, response: Response): void => {
 		.catch(err => errorHandler(response, 500, err));
 };
 
-export const deleteCategory = async (request: Request, response: Response): Promise<void> => {
+export const deleteCategory = (request: Request, response: Response): void => {
 	const categoryId = Number(request.params.id);
 	if (!isPositiveSafeInteger(categoryId)) {
 		return errorHandler(response, 400);
 	}
 
-	if ((await getEntitiesWithId(categoryId)).length !== 0) {
-		return errorHandler(response, 400, 'Refactor this!');
-	}
-
-	const permsToCheck = getPermissionIdsToCheck(request.user.permissions);
-	const canDeleteMain = permsToCheck.indexOf(getPermissionDetailsOfType('DELETE_CATEGORY_MAIN').id) !== -1;
-	const canDeleteWith = permsToCheck.indexOf(getPermissionDetailsOfType('DELETE_CATEGORY_WITH_CHILD').id) !== -1;
-	const canDeleteLast = permsToCheck.indexOf(getPermissionDetailsOfType('DELETE_CATEGORY_LAST_CHILD').id) !== -1;
-
-	if (!canDeleteMain && !canDeleteLast && !canDeleteWith) {
-		return errorHandler(response, 403);
-	}
+	let permsToCheck: number[] = [];
+	let canDeleteMain = false;
+	let canDeleteWith = false;
+	let canDeleteLast = false;
 
 	let isMain = false;
 	let parentId: number | undefined;
 
-	getCategoryById(categoryId)
+	databaseQuerry<Food[]>('SELECT title FROM entity WHERE categoryId = ? ', categoryId)
+		.then(foods => {
+			if (foods.length) {
+				// prettier-ignore
+				throw new RequestError(400, 'Can\'t delete if Entity exists with this Category!');
+			}
+
+			permsToCheck = getPermissionIdsToCheck(request.user.permissions);
+			canDeleteMain = permsToCheck.indexOf(getPermissionDetailsOfType('DELETE_CATEGORY_MAIN').id) !== -1;
+			canDeleteWith = permsToCheck.indexOf(getPermissionDetailsOfType('DELETE_CATEGORY_WITH_CHILD').id) !== -1;
+			canDeleteLast = permsToCheck.indexOf(getPermissionDetailsOfType('DELETE_CATEGORY_LAST_CHILD').id) !== -1;
+
+			if (!canDeleteMain && !canDeleteLast && !canDeleteWith) {
+				throw new RequestError(403);
+			}
+			return getCategoryById(categoryId);
+		})
 		.then(data => {
 			parentId = data?.parentId;
 
@@ -72,7 +81,10 @@ export const deleteCategory = async (request: Request, response: Response): Prom
 		})
 		.then(() => response.status(202).json(defaultHttpResponseMessages.get(202)))
 		.then(() => logger.log('Changecategory success!'))
-		.catch(err => errorHandler(response, err.statusCode || 500, err));
+		.catch(err => {
+			console.log('Error');
+			errorHandler(response, err.statusCode || 500, err);
+		});
 };
 
 export const changeCategory = (request: Request, response: Response): void => {

@@ -2,10 +2,15 @@ import fs from 'fs';
 import { isProd, LOG_PATH } from './constans';
 import { mkdirIfNotExist } from './fileAndFolder';
 
-mkdirIfNotExist(LOG_PATH);
-const logStream = fs.createWriteStream(LOG_PATH + '/logs.log', { flags: 'a' });
-const warnStream = fs.createWriteStream(LOG_PATH + '/warns.log', { flags: 'a' });
-const errorStream = fs.createWriteStream(LOG_PATH + '/erros.log', { flags: 'a' });
+let logStream: fs.WriteStream | undefined;
+let warnStream: fs.WriteStream | undefined;
+let errorStream: fs.WriteStream | undefined;
+
+mkdirIfNotExist(LOG_PATH, () => {
+	logStream = fs.createWriteStream(LOG_PATH + '/logs.log', { flags: 'a' });
+	warnStream = fs.createWriteStream(LOG_PATH + '/warns.log', { flags: 'a' });
+	errorStream = fs.createWriteStream(LOG_PATH + '/erros.log', { flags: 'a' });
+});
 
 export default class Logger {
 	constructor(
@@ -13,34 +18,43 @@ export default class Logger {
 	) {}
 
 	log(...message: unknown[]): void {
-		const date = new Date();
+		if (!logStream) {
+			return;
+		}
 
+		const date = new Date();
 		new Promise(resolve => {
 			const prefix = this.getLoggingPrefix('\x1b[37m', 'LOG', date);
 			!isProd && console.log(prefix, ...message, '\x1b[0m');
-			this.appendTo(logStream, prefix, message);
+			this.appendTo(logStream!, prefix, message);
 			resolve(null);
 		});
 	}
 
 	warn(...warn: unknown[]): void {
-		const date = new Date();
+		if (!warnStream) {
+			return;
+		}
 
+		const date = new Date();
 		new Promise(resolve => {
 			const prefix = this.getLoggingPrefix('\x1b[33m', 'WARN', date);
 			!isProd && console.warn(prefix, ...warn, '\x1b[0m');
-			this.appendTo(warnStream, prefix, warn);
+			this.appendTo(warnStream!, prefix, warn);
 			resolve(null);
 		});
 	}
 
 	error(...error: unknown[]): void {
-		const date = new Date();
+		if (!errorStream) {
+			return;
+		}
 
+		const date = new Date();
 		new Promise(resolve => {
 			const prefix = this.getLoggingPrefix('\x1b[31m', 'ERROR', date);
 			!isProd && console.error(prefix, ...error, '\x1b[0m');
-			this.appendTo(errorStream, prefix, error);
+			this.appendTo(errorStream!, prefix, error);
 			resolve(null);
 		});
 	}

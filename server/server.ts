@@ -29,6 +29,7 @@ import { checkFoodIds } from './routes/utils';
 import { checkAuth } from './utils/auth';
 import { CERT_PEM_PATH, isProd, KEY_PEM_PATH, LOG_PATH } from './utils/constans';
 import { checkFileAndMimetype, multerStorage } from './utils/document';
+import { mkdirIfNotExist } from './utils/fileAndFolder';
 import Logger from './utils/logger';
 import { hasPerms } from './utils/permissions';
 
@@ -49,11 +50,14 @@ https
 
 app.disable('x-powered-by');
 
-app.use(
-	morgan('[:date[iso]] :remote-addr :remote-user :method :url :response-time ms', {
-		stream: fs.createWriteStream(LOG_PATH + '/morgan.log', { flags: 'a' }),
-	})
-);
+mkdirIfNotExist(LOG_PATH, () => {
+	app.use(
+		morgan('[:date[iso]] :remote-addr :remote-user :method :url :response-time ms', {
+			stream: fs.createWriteStream(LOG_PATH + '/morgan.log', { flags: 'a' }),
+		})
+	);
+});
+
 app.use(cors());
 app.use(express.json());
 app.use(compression());

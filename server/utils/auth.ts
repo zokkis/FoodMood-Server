@@ -29,10 +29,11 @@ export const checkAuth = (request: Request, response: Response, next: NextFuncti
 };
 
 const checkAuthOf = (username: string, password: string): Promise<LightUser> => {
-	return getUserByUsername(username, false).then(dbUser => {
+	return getUserByUsername(username).then(dbUser => {
 		if (!compare(password, dbUser.password)) {
 			throw new RequestError(401);
 		}
+
 		const isNew = !dbUser.cachedTime;
 		isNew ? addCachedUser(dbUser) : setNewCacheTime(dbUser);
 		logger.log(isNew ? 'Auth success' : 'Cached auth success');

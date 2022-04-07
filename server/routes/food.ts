@@ -97,9 +97,16 @@ export const deleteFood = (request: Request, response: Response): void => {
 
 	const sqlDeleteFood = 'DELETE FROM entity WHERE entityId = ?';
 	databaseQuerry<OkPacket>(sqlDeleteFood, request.params.id)
-		.then(() => deletePath(`${DOCUMENT_PATH}/${request.params.id}/`))
-		.then(() => response.status(202).json(defaultHttpResponseMessages.get(202)))
-		.then(() => logger.log('Delete success!'))
+		.then(() =>
+			deletePath(`${DOCUMENT_PATH}/${request.params.id}/`, err => {
+				if (err) {
+					throw new RequestError(500, err.message);
+				} else {
+					response.status(202).json(defaultHttpResponseMessages.get(202));
+					logger.log('Delete success!');
+				}
+			})
+		)
 		.catch(err => errorHandler(response, 500, err));
 };
 

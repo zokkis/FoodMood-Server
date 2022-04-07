@@ -49,10 +49,10 @@ export const getUserByUsername = (username: string, showErrorOnEmpty = true, sho
 	/* eslint-disable indent */
 	return cachedUser
 		? new Promise(resolve => resolve(cachedUser))
-		: databaseQuerry<User[]>('SELECT * FROM users WHERE username like ?', username) //
+		: databaseQuerry<User[]>('SELECT * FROM users WHERE username = ?', username) //
 				.then(users => {
 					if ((users.length === 0 && showErrorOnEmpty) || (users.length > 0 && showErrorOnFill)) {
-						throw new RequestError(showErrorOnEmpty ? 404 : 409);
+						throw new RequestError(showErrorOnEmpty ? 401 : 409);
 					}
 					return users[0]; // User.getDefaultUser(users[0]);
 				});

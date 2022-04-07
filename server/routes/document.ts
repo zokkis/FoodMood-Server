@@ -17,15 +17,13 @@ export const addDocument = (request: Request, response: Response): void => {
 	const type = request.file?.type ?? 'document';
 
 	if (request.fileValidateError || !isPositiveSafeInteger(request.body.entityId) || !request.file) {
-		if (request.file?.path) {
-			deletePath(request.file.path);
-		}
+		request.file?.path && deletePath(request.file.path);
 		return errorHandler(response, 400, request.fileValidateError);
 	}
 
 	const permissionDetailsOfType = getPermissionDetailsOfType(`ADD_${type.toUpperCase()}S` as PermissionNamesType)?.value;
 	if (!permissionDetailsOfType) {
-		return errorHandler(response, 500, `Error with type - ${type}`);
+		return errorHandler(response, 500, 'Error with type - ' + type);
 	}
 
 	const sqlCheckEntitiyId = 'SELECT entityId FROM documents WHERE entityId = ? AND type = ?';
@@ -44,7 +42,7 @@ export const addDocument = (request: Request, response: Response): void => {
 		.then(dbPacket => response.status(201).json({ type, documentId: dbPacket.insertId }))
 		.then(() => logger.log(`Add${type} success`))
 		.catch(err => {
-			deletePath(request.file?.path);
+			request.file?.path && deletePath(request.file.path);
 			errorHandler(response, err.statusCode || 500, err);
 		});
 };
@@ -85,8 +83,15 @@ export const deleteDocument = (request: Request, response: Response): void => {
 			const sqlDeleteDocument = 'DELETE FROM documents WHERE documentId = ?';
 			return databaseQuerry<OkPacket>(sqlDeleteDocument, request.params.id);
 		})
-		.then(() => deletePath(pathToDelete))
-		.then(() => response.status(202).json(defaultHttpResponseMessages.get(202)))
-		.then(() => logger.log('Document deleted!'))
+		.then(() =>
+			deletePath(pathToDelete, err => {
+				if (err) {
+					throw new RequestError(500, err.message);
+				} else {
+					response.status(202).json(defaultHttpResponseMessages.get(202));
+					logger.log('Document deleted!');
+				}
+			})
+		)
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };
