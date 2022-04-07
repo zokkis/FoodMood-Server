@@ -9,11 +9,11 @@ export const isPositiveSafeInteger = (int: unknown): boolean => {
 };
 
 export const isValideUsername = (username: unknown): boolean => {
-	return typeof username === 'string' && username.length <= 500;
+	return typeof username === 'string' && username.length <= 128;
 };
 
 export const isValidePassword = (password: unknown): boolean => {
-	return typeof password === 'string' && /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])(?=.*[0-9])(?=.*[a-z]).{6,}/.test(password);
+	return typeof password === 'string' && /^(?=.*[A-Z])(?=.*[^A-Za-z0-9])(?=.*[0-9])(?=.*[a-z]).{6,256}/.test(password);
 };
 
 export const isValideRating = (toTest: IRating, userId: number): boolean => {

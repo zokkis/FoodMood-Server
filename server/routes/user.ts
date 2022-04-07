@@ -1,4 +1,3 @@
-import bcrypt from 'bcrypt';
 import { Request, Response } from 'express';
 import { OkPacket } from 'mysql';
 import { defaultHttpResponseMessages } from '../models/httpResponse';
@@ -7,6 +6,7 @@ import { LightUser, User } from '../models/user';
 import { deleteCachedUser, updateCachedUsersPropety } from '../utils/cachedUser';
 import { databaseQuerry, getEntityWithId, getUserByUsername } from '../utils/database';
 import { errorHandler, RequestError } from '../utils/error';
+import { generatePasswordWithSalt } from '../utils/crypto';
 import Logger from '../utils/logger';
 import { getSQLAndData } from '../utils/parser';
 import { isPositiveSafeInteger, isValidePassword, isValideSQLTimestamp, isValideUsername } from '../utils/validator';
@@ -24,9 +24,11 @@ export const register = (request: Request, response: Response): void => {
 	}
 
 	getUserByUsername(request.body.username, false, true)
-		.then(() => bcrypt.hash(request.body.password, 10))
-		.then(salt =>
-			databaseQuerry<OkPacket>('INSERT INTO users SET ?', LightUser.getDBInsertUser({ username: request.body.username, password: salt }))
+		.then(() =>
+			databaseQuerry<OkPacket>(
+				'INSERT INTO users SET ?',
+				LightUser.getDBInsertUser({ username: request.body.username, password: generatePasswordWithSalt(request.body.password) })
+			)
 		)
 		.then(user => response.status(201).json({ userId: user.insertId }))
 		.then(() => logger.log('Register success!'))
@@ -42,14 +44,9 @@ export const changePassword = (request: Request, response: Response): void => {
 		return errorHandler(response, 400);
 	}
 
-	let password: string;
-	bcrypt
-		.hash(request.body.password, 10)
-		.then(salt => {
-			password = salt;
-			const sqlChangePassword = 'UPDATE users SET password = ? WHERE username = ?';
-			return databaseQuerry<OkPacket>(sqlChangePassword, [salt, request.user.username]);
-		})
+	const password = generatePasswordWithSalt(request.body.password);
+	const sqlChangePassword = 'UPDATE users SET password = ? WHERE username = ?';
+	databaseQuerry<OkPacket>(sqlChangePassword, [password, request.user.username])
 		.then(() => updateCachedUsersPropety(request.user.username, 'password', password))
 		.then(() => response.status(201).json(defaultHttpResponseMessages.get(201)))
 		.then(() => logger.log('Changepassword success!'))
