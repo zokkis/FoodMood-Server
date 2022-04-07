@@ -17,8 +17,8 @@ export const tryParse = <T>(toParse: unknown): T | undefined => {
 type QueryPaginationType = 'limit' | 'offset';
 const queryPagination: QueryPaginationType[] = ['limit', 'offset'];
 
-type QueryParmsType = 'lte' | 'gte' | /* 'exists' | */ 'regex' | 'before' | 'after' | 'eql';
-const queryParms: QueryParmsType[] = ['lte', 'gte', /* 'exists', */ 'regex', 'before', 'after', 'eql'];
+type QueryParmsType = 'lte' | 'gte' | /* 'exists' | */ 'regex' | 'before' | 'after' | 'eql' | 'contains';
+const queryParms: QueryParmsType[] = ['lte', 'gte', /* 'exists', */ 'regex', 'before', 'after', 'eql', 'contains'];
 
 type QueryData = { [val in QueryParmsType]?: string }; // idk if this '?' is a good idea
 type Query = { [val: string]: QueryData | string };
@@ -86,22 +86,25 @@ export const getSQLAndData = (query: { [key: string]: unknown }, clazz: any): { 
 				if (keyValue && key === 'lastEdit' && !isValideSQLTimestamp(keyValue)) {
 					continue;
 				}
-				sql += keyValue && sql.includes('WHERE') ? ' AND' : ' WHERE';
+				sql += keyValue && sql.includes('WHERE') ? ' AND ' : ' WHERE ';
 
 				switch (queryKey) {
 					case 'lte':
 					case 'before':
-						sql += ' ' + key + ' <= ?';
+						sql += key + ' <= ?';
 						break;
 					case 'gte':
 					case 'after':
-						sql += ' ' + key + ' >= ?';
+						sql += key + ' >= ?';
 						break;
 					case 'regex':
-						sql += ' ' + key + ' REGEXP ?';
+						sql += key + ' REGEXP ?';
 						break;
 					case 'eql':
-						sql += ' ' + key + ' = ?';
+						sql += key + ' = ?';
+						break;
+					case 'contains':
+						sql += 'LOCATE(?, ' + key + ') > 0';
 						break;
 					default:
 						continue;
