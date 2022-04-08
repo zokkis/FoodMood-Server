@@ -17,9 +17,9 @@ interface IFood {
 
 export class Food implements IFood {
 	constructor(
-		public title: string,
-		public categoryId: number,
-		public rating: IRating,
+		public title: string = '',
+		public categoryId: number = -1,
+		public rating: IRating = {},
 		public entityId?: number,
 		public comment?: string,
 		public description?: string,
@@ -35,7 +35,7 @@ export class Food implements IFood {
 		return new Food(
 			json.title,
 			json.categoryId,
-			json.rating || {},
+			json.rating,
 			json.entityId,
 			json.comment,
 			json.description,

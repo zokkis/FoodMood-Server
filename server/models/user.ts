@@ -52,8 +52,8 @@ export class User implements IUser {
 
 export class LightUser implements ILightUser {
 	constructor(
-		public userId: number,
-		public username: string,
+		public userId: number = -1,
+		public username: string = '',
 		public permissions: Permission = { hasDefault: true },
 		public favorites: number[] = [],
 		public shoppingList: ShoppingList[] = [],

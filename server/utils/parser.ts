@@ -14,11 +14,14 @@ export const tryParse = <T>(toParse: unknown): T | undefined => {
 // [lte], [gte], [exists], [regex], [before], and [after] -> gte smaller
 // -> price= lte:15; price= gte:5 -> price= [lte:15, gte:5]
 
+type OrdersType = 'ASC' | 'DESC';
+const orders: OrdersType[] = ['ASC', 'DESC'];
+
 type QueryPaginationType = 'limit' | 'offset';
 const queryPagination: QueryPaginationType[] = ['limit', 'offset'];
 
-type QueryParmsType = 'lte' | 'gte' | /* 'exists' | */ 'regex' | 'before' | 'after' | 'eql' | 'contains';
-const queryParms: QueryParmsType[] = ['lte', 'gte', /* 'exists', */ 'regex', 'before', 'after', 'eql', 'contains'];
+type QueryParmsType = 'lte' | 'gte' | /* 'exists' | */ 'regex' | 'before' | 'after' | 'eql' | 'contains' | 'order';
+const queryParms: QueryParmsType[] = ['lte', 'gte', /* 'exists', */ 'regex', 'before', 'after', 'eql', 'contains', 'order'];
 
 type QueryData = { [val in QueryParmsType]?: string }; // idk if this '?' is a good idea
 type Query = { [val: string]: QueryData | string };
@@ -76,46 +79,62 @@ export const getSQLAndData = (query: { [key: string]: unknown }, clazz: any): { 
 	}
 
 	const queryData: (string | number)[] = [];
+	let isWhereInSql = false;
 	let sql = '';
+	let orderSql = '';
 
 	for (const key in parsedQuery) {
 		const queryKeys = parsedQuery[key];
 		if (typeof queryKeys !== 'string' && key in clazz) {
 			for (const queryKey in queryKeys) {
 				const keyValue = queryKeys[queryKey as QueryParmsType];
-				if (keyValue && key === 'lastEdit' && !isValideSQLTimestamp(keyValue)) {
+				if (key === 'lastEdit' && !isValideSQLTimestamp(keyValue)) {
 					continue;
 				}
-				sql += keyValue && sql.includes('WHERE') ? ' AND ' : ' WHERE ';
+				if (queryKey !== 'order') {
+					sql += isWhereInSql ? ' AND ' : ' WHERE ';
+					isWhereInSql = true;
+				}
 
 				switch (queryKey) {
 					case 'lte':
 					case 'before':
-						sql += key + ' <= ?';
+						sql += `${key} <= ?`;
 						break;
 					case 'gte':
 					case 'after':
-						sql += key + ' >= ?';
+						sql += `${key} >= ?`;
 						break;
 					case 'regex':
-						sql += key + ' REGEXP ?';
+						sql += `${key} REGEXP ?`;
 						break;
 					case 'eql':
-						sql += key + ' = ?';
+						sql += `${key} = ?`;
 						break;
 					case 'contains':
-						sql += 'LOCATE(?, ' + key + ') > 0';
+						sql += `LOCATE(?, ${key}) > 0`;
 						break;
+					case 'order': {
+						const data = queryKeys[queryKey]?.toUpperCase();
+						if (orders.includes(data as OrdersType)) {
+							orderSql += `${orderSql ? ',' : ' ORDER BY'} ${key} ${data}`;
+						}
+						continue;
+					}
 					default:
 						continue;
 				}
 
-				const parsedQueryData = parsedQuery[key];
-				const pushData = typeof parsedQueryData === 'string' ? parsedQueryData : parsedQueryData[queryKey];
+				const pushData = queryKeys[queryKey];
 				pushData && queryData.push(pushData);
 			}
 		}
 	}
+
+	if (orderSql) {
+		sql += orderSql;
+	}
+
 	queryPagination.forEach(data => {
 		const parsedData = parsedQuery[data];
 		if (isPositiveSafeInteger(parsedData)) {

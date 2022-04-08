@@ -12,8 +12,8 @@ interface ICategory {
 
 export class Category implements ICategory {
 	constructor(
-		public categoryId: number, //
-		public title: string,
+		public categoryId: number = -1, //
+		public title: string = '',
 		public parentId?: number,
 		public lastEdit?: string
 	) {}

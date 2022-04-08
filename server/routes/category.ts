@@ -82,7 +82,6 @@ export const deleteCategory = (request: Request, response: Response): void => {
 		.then(() => response.status(202).json(defaultHttpResponseMessages.get(202)))
 		.then(() => logger.log('Changecategory success!'))
 		.catch(err => {
-			console.log('Error');
 			errorHandler(response, err.statusCode || 500, err);
 		});
 };
@@ -105,7 +104,7 @@ export const changeCategory = (request: Request, response: Response): void => {
 };
 
 export const getCategories = (request: Request, response: Response): void => {
-	const { sql, queryData } = getSQLAndData(request.query, new Category(-1, ''));
+	const { sql, queryData } = getSQLAndData(request.query, new Category());
 
 	databaseQuerry<Category[]>('SELECT * FROM categories' + sql, queryData)
 		.then(categories => response.status(200).json(categories))

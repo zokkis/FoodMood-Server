@@ -14,7 +14,7 @@ import { IRating } from '../models/rating';
 const logger = new Logger('Food');
 
 export const getAllFoods = (request: Request, response: Response): void => {
-	const { sql, queryData } = getSQLAndData(request.query, new Food('', -1, {}));
+	const { sql, queryData } = getSQLAndData(request.query, new Food());
 
 	databaseQuerry<Food[]>('SELECT * FROM entity' + sql, queryData)
 		.then(data => response.status(200).json(data))

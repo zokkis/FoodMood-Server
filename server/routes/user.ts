@@ -89,8 +89,7 @@ export const deleteUser = (request: Request, response: Response): void => {
 };
 
 export const getUsers = (request: Request, response: Response): void => {
-	const { sql, queryData } = getSQLAndData(request.query, new LightUser(-1, ''));
-	console.log(sql, queryData);
+	const { sql, queryData } = getSQLAndData(request.query, new LightUser());
 
 	databaseQuerry<User[]>('SELECT username, userId FROM users' + sql, queryData)
 		.then(users => response.status(200).json(users))
