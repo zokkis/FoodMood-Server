@@ -12,19 +12,12 @@ const dbPool = mysql.createPool(sqlConfigs);
 
 export const databaseQuerry = <T>(sql: string, data: unknown = undefined): Promise<T> => {
 	return new Promise((resolve, reject) =>
-		dbPool.getConnection((err, connection) => {
+		dbPool.query(sql, data, (err, result) => {
 			if (err) {
 				logger.error(err);
 				return reject(err);
 			}
-			connection.query(sql, data, (err, result) => {
-				if (err) {
-					logger.error(err);
-					return reject(err);
-				}
-				resolve(result);
-				connection.release();
-			});
+			resolve(result);
 		})
 	);
 };
