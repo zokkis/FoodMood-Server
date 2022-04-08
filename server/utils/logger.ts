@@ -2,15 +2,21 @@ import fs from 'fs';
 import { isProd, LOG_PATH } from './constans';
 import { mkdirIfNotExist } from './fileAndFolder';
 
-let logStream: fs.WriteStream | undefined;
-let warnStream: fs.WriteStream | undefined;
-let errorStream: fs.WriteStream | undefined;
+let logStream: fs.WriteStream;
+let warnStream: fs.WriteStream;
+let errorStream: fs.WriteStream;
 
-mkdirIfNotExist(LOG_PATH, () => {
+const createStreams = (): void => {
 	logStream = fs.createWriteStream(LOG_PATH + '/logs.log', { flags: 'a' });
 	warnStream = fs.createWriteStream(LOG_PATH + '/warns.log', { flags: 'a' });
 	errorStream = fs.createWriteStream(LOG_PATH + '/erros.log', { flags: 'a' });
-});
+};
+
+try {
+	createStreams();
+} catch {
+	mkdirIfNotExist(LOG_PATH, createStreams);
+}
 
 export default class Logger {
 	constructor(
@@ -26,7 +32,7 @@ export default class Logger {
 		new Promise(resolve => {
 			const prefix = this.getLoggingPrefix('\x1b[37m', 'LOG', date);
 			!isProd && console.log(prefix, ...message, '\x1b[0m');
-			this.appendTo(logStream!, prefix, message);
+			this.appendTo(logStream, prefix, message);
 			resolve(null);
 		});
 	}
@@ -40,7 +46,7 @@ export default class Logger {
 		new Promise(resolve => {
 			const prefix = this.getLoggingPrefix('\x1b[33m', 'WARN', date);
 			!isProd && console.warn(prefix, ...warn, '\x1b[0m');
-			this.appendTo(warnStream!, prefix, warn);
+			this.appendTo(warnStream, prefix, warn);
 			resolve(null);
 		});
 	}
@@ -54,7 +60,7 @@ export default class Logger {
 		new Promise(resolve => {
 			const prefix = this.getLoggingPrefix('\x1b[31m', 'ERROR', date);
 			!isProd && console.error(prefix, ...error, '\x1b[0m');
-			this.appendTo(errorStream!, prefix, error);
+			this.appendTo(errorStream, prefix, error);
 			resolve(null);
 		});
 	}

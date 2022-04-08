@@ -8,7 +8,7 @@ import { databaseQuerry } from '../utils/database';
 import { errorHandler, RequestError } from '../utils/error';
 import { deletePath } from '../utils/fileAndFolder';
 import Logger from '../utils/logger';
-import { getPermissionDetailsOfType, getPermissionIdsToCheck } from '../utils/permissions';
+import { getPermissionDetailsOfType } from '../utils/permissions';
 import { isPositiveSafeInteger } from '../utils/validator';
 
 const logger = new Logger('Document');
@@ -31,7 +31,7 @@ export const addDocument = (request: Request, response: Response): void => {
 		.then(data => {
 			if (
 				data.length >= permissionDetailsOfType &&
-				getPermissionIdsToCheck(request.user.permissions).indexOf(getPermissionDetailsOfType('ADMIN').id) === -1
+				request.user.permissions.permissions?.indexOf(getPermissionDetailsOfType('ADMIN').id) === -1
 			) {
 				throw new RequestError(403, `Too much ${type}s on this entity!`);
 			}

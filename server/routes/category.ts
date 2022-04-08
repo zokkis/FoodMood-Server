@@ -7,7 +7,7 @@ import { databaseQuerry, getCategoryById } from '../utils/database';
 import { errorHandler, RequestError } from '../utils/error';
 import Logger from '../utils/logger';
 import { getSQLAndData } from '../utils/parser';
-import { getPermissionDetailsOfType, getPermissionIdsToCheck } from '../utils/permissions';
+import { containsPermFromIds, getPermissionIdsToCheck } from '../utils/permissions';
 import { isPositiveSafeInteger } from '../utils/validator';
 
 const logger = new Logger('Category');
@@ -25,55 +25,59 @@ export const addCategory = (request: Request, response: Response): void => {
 		.catch(err => errorHandler(response, 500, err));
 };
 
-export const deleteCategory = (request: Request, response: Response): void => {
+export const deleteCategory = (request: Request, response: Response): Promise<void> | void => {
 	const categoryId = Number(request.params.id);
 	if (!isPositiveSafeInteger(categoryId)) {
 		return errorHandler(response, 400);
 	}
 
-	let permsToCheck: number[] = [];
-	let canDeleteMain = false;
-	let canDeleteWith = false;
-	let canDeleteLast = false;
-
-	let isMain = false;
-	let parentId: number | undefined;
-
-	databaseQuerry<Food[]>('SELECT title FROM entity WHERE categoryId = ? ', categoryId)
+	return databaseQuerry<Food[]>('SELECT title FROM entity WHERE categoryId = ? ', categoryId)
 		.then(foods => {
-			if (foods.length) {
-				// prettier-ignore
-				throw new RequestError(400, 'Can\'t delete if Entity exists with this Category!');
-			}
+			const withEntities = !!foods.length;
+			const permsToCheck = getPermissionIdsToCheck(request.user.permissions);
+			const canChangeFood = containsPermFromIds(permsToCheck, 'CHANGE_FOOD');
+			const canDeleteMain = containsPermFromIds(permsToCheck, 'DELETE_CATEGORY_MAIN');
+			const canDeleteWith = containsPermFromIds(permsToCheck, 'DELETE_CATEGORY_WITH_CHILD');
+			const canDeleteLast = containsPermFromIds(permsToCheck, 'DELETE_CATEGORY_LAST_CHILD');
 
-			permsToCheck = getPermissionIdsToCheck(request.user.permissions);
-			canDeleteMain = permsToCheck.indexOf(getPermissionDetailsOfType('DELETE_CATEGORY_MAIN').id) !== -1;
-			canDeleteWith = permsToCheck.indexOf(getPermissionDetailsOfType('DELETE_CATEGORY_WITH_CHILD').id) !== -1;
-			canDeleteLast = permsToCheck.indexOf(getPermissionDetailsOfType('DELETE_CATEGORY_LAST_CHILD').id) !== -1;
-
-			if (!canDeleteMain && !canDeleteLast && !canDeleteWith) {
+			if ((withEntities && !canChangeFood) || (!canDeleteMain && !canDeleteLast && !canDeleteWith)) {
 				throw new RequestError(403);
 			}
-			return getCategoryById(categoryId);
-		})
-		.then(data => {
-			parentId = data?.parentId;
 
-			if (!parentId || parentId === categoryId) {
-				if (!canDeleteMain) {
-					throw new RequestError(403);
-				}
-				isMain = true;
-			}
-			const sqlCheckHasChilds = 'SELECT categoryId FROM categories WHERE parentId = ?';
-			return databaseQuerry<Category[]>(sqlCheckHasChilds, categoryId);
-		})
-		.then(childs => {
-			if (childs.length > 0 && !canDeleteWith) {
-				throw new RequestError(403);
-			}
-			const sqlChangeParentId = 'UPDATE categories SET parentId = ? WHERE parentId = ?';
-			return databaseQuerry<OkPacket>(sqlChangeParentId, [isMain ? null : parentId, categoryId]);
+			let parentId: number | undefined;
+			return getCategoryById(categoryId)
+				.then(category => {
+					parentId = category.parentId;
+					if ((!parentId || parentId === categoryId) && (!canDeleteMain || withEntities)) {
+						// prettier-ignore
+						throw new RequestError(403, withEntities ? 'Can\'t delete Main-Category with Entities!' : undefined);
+					}
+					const sqlCheckHasChilds = 'SELECT categoryId FROM categories WHERE parentId = ?';
+					return databaseQuerry<Category[]>(sqlCheckHasChilds, categoryId);
+				})
+				.then(childs => {
+					const hasChilds = !!childs.length;
+					if (!canDeleteWith && hasChilds) {
+						throw new RequestError(403);
+					}
+					if (!hasChilds) {
+						return;
+					}
+					// no need to check for permissions -> already checked
+					// set childs parentId to parentId or null
+					const sqlChangeParentId = 'UPDATE categories SET parentId = ? WHERE parentId = ?';
+					return databaseQuerry<OkPacket>(sqlChangeParentId, [parentId, categoryId]);
+				})
+				.then(() => {
+					if (!withEntities) {
+						return;
+					}
+					// parentId must be set - because can't be main
+					// no need to check for main -> already checked
+					// no need to check for permissions -> already checked
+					const sqlChangeEntitiesCatId = 'UPDATE entity SET categoryId = ? WHERE categoryId = ?';
+					return databaseQuerry<OkPacket>(sqlChangeEntitiesCatId, [parentId, categoryId]);
+				});
 		})
 		.then(() => {
 			const sqlDeleteCategory = 'DELETE FROM categories WHERE categoryId = ?';
@@ -81,14 +85,12 @@ export const deleteCategory = (request: Request, response: Response): void => {
 		})
 		.then(() => response.status(202).json(defaultHttpResponseMessages.get(202)))
 		.then(() => logger.log('Changecategory success!'))
-		.catch(err => {
-			errorHandler(response, err.statusCode || 500, err);
-		});
+		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };
 
 export const changeCategory = (request: Request, response: Response): void => {
 	const categoryId = Number(request.params.id);
-	if (!isPositiveSafeInteger(categoryId) || (!request.body.title && !isPositiveSafeInteger(request.body.parentId))) {
+	if (!isPositiveSafeInteger(categoryId) || !request.body.title || !isPositiveSafeInteger(request.body.parentId)) {
 		return errorHandler(response, 400);
 	}
 

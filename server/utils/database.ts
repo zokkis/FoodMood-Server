@@ -23,6 +23,7 @@ export const databaseQuerry = <T>(sql: string, data: unknown = undefined): Promi
 					return reject(err);
 				}
 				resolve(result);
+				connection.release();
 			});
 		})
 	);

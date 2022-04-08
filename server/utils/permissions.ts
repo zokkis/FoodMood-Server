@@ -18,13 +18,13 @@ export const hasPerms = (...perms: PermissionNamesType[]): ((request: Request, r
 };
 
 const containsAllPerms = (userPerm: Permission, mustHave: PermissionNamesType[]): boolean => {
-	const permsToCheck: number[] = getPermissionIdsToCheck(userPerm);
+	if (userPerm.permissions?.includes(getPermissionDetailsOfType('ADMIN').id)) {
+		return true;
+	}
 
+	const permsToCheck: number[] = getPermissionIdsToCheck(userPerm);
 	if (permsToCheck.length === 0) {
 		return false;
-	}
-	if (permsToCheck.indexOf(getPermissionDetailsOfType('ADMIN').id) !== -1) {
-		return true;
 	}
 
 	for (const needed of getPermissionDetailsOfTypes(mustHave).map(permDetail => permDetail.id)) {
@@ -34,6 +34,13 @@ const containsAllPerms = (userPerm: Permission, mustHave: PermissionNamesType[])
 	}
 
 	return true;
+};
+
+export const containsPermFromIds = (userPermIds: number[], mustHave: PermissionNamesType): boolean => {
+	return (
+		userPermIds.includes(getPermissionDetailsOfType('ADMIN').id) ||
+		(userPermIds.length !== 0 && !(userPermIds.indexOf(getPermissionDetailsOfType(mustHave).id) === -1))
+	);
 };
 
 const getDefaultPermissionDetails = (): PermissionDetails[] => {
