@@ -3,6 +3,7 @@ import cors from 'cors';
 import express from 'express';
 import fs from 'fs';
 import https from 'https';
+import http from 'http';
 import morgan from 'morgan';
 import multer from 'multer';
 import server from '../package.json';
@@ -38,15 +39,19 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 
-https
-	.createServer(
-		{
-			key: fs.readFileSync(KEY_PEM_PATH),
-			cert: fs.readFileSync(CERT_PEM_PATH),
-		},
-		app
-	)
-	.listen(PORT, () => logger.log('Server started on port ' + PORT + '!'));
+if (process.env.HTTPS) {
+	https
+		.createServer(
+			{
+				key: fs.readFileSync(KEY_PEM_PATH),
+				cert: fs.readFileSync(CERT_PEM_PATH),
+			},
+			app
+		)
+		.listen(PORT, () => logger.log('HTTPS-Server started on port ' + PORT + '!'));
+} else {
+	http.createServer({}, app).listen(PORT, () => logger.log('HTTP-Server started on port ' + PORT + '!'));
+}
 
 app.disable('x-powered-by');
 
