@@ -47,6 +47,18 @@ export const addDocument = (request: Request, response: Response): void => {
 		});
 };
 
+export const getDocumentIdsForEntityId = (request: Request, response: Response): void => {
+	if (!isPositiveSafeInteger(request.params.id)) {
+		return errorHandler(response, 400);
+	}
+
+	const sqlGetImageIds = 'SELECT documentId FROM documents WHERE entityId = ?';
+	databaseQuerry<Document[]>(sqlGetImageIds, request.params.id)
+		.then(images => response.json(images.map(img => img.documentId)))
+		.then(() => logger.log('GetDocumentIdsForEntityId success!'))
+		.catch(err => errorHandler(response, err.statusCode || 500, err));
+};
+
 export const getDocument = (request: Request, response: Response): void => {
 	if (!isPositiveSafeInteger(request.params.id)) {
 		return errorHandler(response, 400);
@@ -59,7 +71,7 @@ export const getDocument = (request: Request, response: Response): void => {
 				throw new RequestError(400);
 			}
 			const image = images[0];
-			response.status(200).sendFile(`${process.cwd()}/${DOCUMENT_PATH}/${image.entityId}/${image.name}`);
+			response.sendFile(`${process.cwd()}/${DOCUMENT_PATH}/${image.entityId}/${image.name}`);
 		})
 		.then(() => logger.log('Getdocument success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));

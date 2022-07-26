@@ -109,7 +109,7 @@ export const getCategories = (request: Request, response: Response): void => {
 	const { sql, queryData } = getSQLAndData(request.query, new Category());
 
 	databaseQuerry<Category[]>('SELECT * FROM categories' + sql, queryData)
-		.then(categories => response.status(200).json(categories))
+		.then(categories => response.json(categories))
 		.then(() => logger.log('Getcategory success!'))
 		.catch(err => errorHandler(response, 500, err));
 };
@@ -121,7 +121,7 @@ export const getCategory = (request: Request, response: Response): void => {
 	}
 
 	getCategoryById(categoryId)
-		.then(category => response.status(200).json(category))
+		.then(category => response.json(category))
 		.then(() => logger.log('Getcategory success!'))
 		.catch(err => errorHandler(response, 500, err));
 };

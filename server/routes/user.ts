@@ -36,7 +36,7 @@ export const register = (request: Request, response: Response): void => {
 };
 
 export const login = (request: Request, response: Response): void => {
-	response.status(200).json(request.user);
+	response.json(request.user);
 };
 
 export const changePassword = (request: Request, response: Response): void => {
@@ -92,7 +92,7 @@ export const getUsers = (request: Request, response: Response): void => {
 	const { sql, queryData } = getSQLAndData(request.query, new LightUser());
 
 	databaseQuerry<User[]>('SELECT username, userId FROM users' + sql, queryData)
-		.then(users => response.status(200).json(users))
+		.then(users => response.json(users))
 		.then(() => logger.log('GetUsers success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };
@@ -106,7 +106,7 @@ export const getFavorites = (request: Request, response: Response): void => {
 	let sqlGetFavorites = 'SELECT favorites FROM users WHERE userId = ?';
 	sqlGetFavorites += isValideQuery ? ' AND WHERE lastEdit >= ?' : '';
 	databaseQuerry<User[]>(sqlGetFavorites, [request.params.id, isValideQuery ? request.query.lastEdit : undefined])
-		.then(favs => response.status(200).json(favs))
+		.then(favs => response.json(favs))
 		.then(() => logger.log('GetFavorites success!'))
 		.catch(err => errorHandler(response, err.statusCode || 500, err));
 };

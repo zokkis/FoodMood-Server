@@ -12,7 +12,7 @@ const logger = new Logger('Message');
 export const getMessagesForMe = (request: Request, response: Response): void => {
 	const sqlGetMessages = 'SELECT * FROM messages WHERE receiverId = ?';
 	databaseQuerry<Message[]>(sqlGetMessages, request.user.userId)
-		.then(messages => response.status(200).json(messages))
+		.then(messages => response.json(messages))
 		.then(() => {
 			const sqlDeleteMessage = 'DELETE FROM messages WHERE receiverId = ?';
 			return databaseQuerry<OkPacket>(sqlDeleteMessage, request.user.userId);
@@ -24,7 +24,7 @@ export const getMessagesForMe = (request: Request, response: Response): void => 
 export const getOwnMessages = (request: Request, response: Response): void => {
 	const sqlGetMessages = 'SELECT * FROM messages WHERE senderId = ?';
 	databaseQuerry<Message[]>(sqlGetMessages, request.user.userId)
-		.then(messages => response.status(200).json(messages))
+		.then(messages => response.json(messages))
 		.then(() => logger.log('Getownmessages success!'))
 		.catch(err => errorHandler(response, 500, err));
 };

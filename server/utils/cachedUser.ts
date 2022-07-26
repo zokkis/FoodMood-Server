@@ -48,11 +48,17 @@ export const setNewCacheTime = (user: User): void => {
 	user.cachedTime = Date.now();
 };
 
-export const getCachedUserByName = (name: string | undefined): User | undefined => {
+export const getCachedUserByName = (name?: string): User | undefined => {
+	if (!name) {
+		return;
+	}
 	return cachedUsers.find(user => user.username === name);
 };
 
-export const getCachedUserById = (id: number | undefined): User | undefined => {
+export const getCachedUserById = (id?: number): User | undefined => {
+	if (!id) {
+		return;
+	}
 	return cachedUsers.find(user => user.userId === id);
 };
 

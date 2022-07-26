@@ -9,7 +9,7 @@ import multer from 'multer';
 import server from '../package.json';
 import { defaultHttpResponseMessages } from './models/httpResponse';
 import { addCategory, changeCategory, deleteCategory, getCategory, getCategories } from './routes/category';
-import { addDocument, deleteDocument, getDocument } from './routes/document';
+import { addDocument, deleteDocument, getDocument, getDocumentIdsForEntityId } from './routes/document';
 import { addFood, changeFood, deleteFood, getAllFoods, getFoodById, rateFood } from './routes/food';
 import { deleteMessage, editMessage, getMessagesForMe, getOwnMessages, sendMessage } from './routes/message';
 import {
@@ -70,12 +70,12 @@ app.use(compression());
 app.use('/favicon.ico', express.static('images/favicon.ico'));
 
 app.get('/', (_request, response) => {
-	response.status(200).json('ONLINE');
+	response.json('ONLINE');
 });
 
 const info = { isOnline: true, version: server.version, isProd };
 app.get('/info', (_request, response) => {
-	response.status(200).json(info);
+	response.json(info);
 });
 
 app.post('/register', register);
@@ -123,6 +123,8 @@ app.post(
 	multer({ fileFilter: checkFileAndMimetype('image'), storage: multerStorage }).any(),
 	addDocument
 );
+
+app.get('/images/food/:id', checkAuth, hasPerms('VIEW_IMAGES'), getDocumentIdsForEntityId);
 
 app.get('/images/:id', checkAuth, hasPerms('VIEW_IMAGES'), getDocument);
 
