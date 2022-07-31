@@ -68,8 +68,8 @@ const queryKeyValueParser = (value: string | string[]): QueryData | undefined =>
 };
 
 const queryStringParser = (value: string): QueryData | undefined => {
-	const split = value.toLowerCase().split(':') as [QueryParmsType, string];
-	if (split.length !== 2 || !QUERY_PARAMS.includes(split[0]) || !split[1]) {
+	const split = value.toLowerCase().split(/:(.*)/) as [QueryParmsType, string, unknown];
+	if (split.length !== 3 || !QUERY_PARAMS.includes(split[0]) || !split[1] || split[2]) {
 		return;
 	}
 	return { [split[0]]: split[1] };
