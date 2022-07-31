@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { OkPacket } from 'mysql';
 import { defaultHttpResponseMessages } from '../models/httpResponse';
 import { ShoppingList } from '../models/shoppingList';
-import { LightUser, User } from '../models/user';
+import { LightUser, User, USER_PROPS } from '../models/user';
 import { deleteCachedUser, updateCachedUsersPropety } from '../utils/cachedUser';
 import { databaseQuerry, getEntityWithId, getUserByUsername } from '../utils/database';
 import { errorHandler, RequestError } from '../utils/error';
@@ -89,7 +89,7 @@ export const deleteUser = (request: Request, response: Response): void => {
 };
 
 export const getUsers = (request: Request, response: Response): void => {
-	const { sql, queryData } = getSQLAndData(request.query, new LightUser());
+	const { sql, queryData } = getSQLAndData(request.query, USER_PROPS);
 
 	databaseQuerry<User[]>('SELECT username, userId FROM users' + sql, queryData)
 		.then(users => response.json(users))

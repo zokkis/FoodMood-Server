@@ -24,6 +24,8 @@ interface IUser extends ILightUser {
 	cachedTime?: number;
 }
 
+export const USER_PROPS: Array<keyof IUser> = ['userId', 'username', 'permissions', 'favorites', 'shoppingList', 'lastEdit'];
+
 export class User implements IUser {
 	constructor(
 		public userId: number,
@@ -52,8 +54,8 @@ export class User implements IUser {
 
 export class LightUser implements ILightUser {
 	constructor(
-		public userId: number = -1,
-		public username: string = '',
+		public userId: number,
+		public username: string,
 		public permissions: Permission = { hasDefault: true },
 		public favorites: number[] = [],
 		public shoppingList: ShoppingList[] = [],
