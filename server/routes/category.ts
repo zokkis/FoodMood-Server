@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { OkPacket } from 'mysql';
-import { Category } from '../models/category';
+import { Category, CATEGORY_PROPS } from '../models/category';
 import { Food } from '../models/food';
 import { defaultHttpResponseMessages } from '../models/httpResponse';
 import { databaseQuerry, getCategoryById } from '../utils/database';
@@ -106,8 +106,9 @@ export const changeCategory = (request: Request, response: Response): void => {
 };
 
 export const getCategories = (request: Request, response: Response): void => {
-	const { sql, queryData } = getSQLAndData(request.query, new Category());
+	const { sql, queryData } = getSQLAndData(request.query, CATEGORY_PROPS);
 
+	console.log('SELECT * FROM categories' + sql, queryData);
 	databaseQuerry<Category[]>('SELECT * FROM categories' + sql, queryData)
 		.then(categories => response.json(categories))
 		.then(() => logger.log('Getcategory success!'))

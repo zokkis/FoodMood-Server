@@ -15,13 +15,17 @@ export const tryParse = <T>(toParse: unknown): T | undefined => {
 // -> price= lte:15; price= gte:5 -> price= [lte:15, gte:5]
 
 type OrdersType = 'ASC' | 'DESC';
-const orders: OrdersType[] = ['ASC', 'DESC'];
+const ORDERS: OrdersType[] = ['ASC', 'DESC'];
+
+type TypesType = 'AND' | 'OR';
+const TYPES: TypesType[] = ['AND', 'OR'];
 
 type QueryPaginationType = 'limit' | 'offset';
-const queryPagination: QueryPaginationType[] = ['limit', 'offset'];
+const QUERY_PAGINATION: QueryPaginationType[] = ['limit', 'offset'];
 
-type QueryParmsType = 'lte' | 'gte' | /* 'exists' | */ 'regex' | 'before' | 'after' | 'eql' | 'contains' | 'order';
-const queryParms: QueryParmsType[] = ['lte', 'gte', /* 'exists', */ 'regex', 'before', 'after', 'eql', 'contains', 'order'];
+type QueryParmsType = 'lte' | 'gte' | /* 'exists' | */ 'regex' | 'before' | 'after' | 'eql' | 'contains' | 'in' | 'order' | 'type';
+const QUERY_PARAMS: QueryParmsType[] = ['lte', 'gte', /* 'exists', */ 'regex', 'before', 'after', 'eql', 'contains', 'in', 'order', 'type'];
+const EXCLUDE_FROM_SQL_QUERY: QueryParmsType[] = ['in', 'order', 'type'];
 
 type QueryData = { [val in QueryParmsType]?: string }; // idk if this '?' is a good idea
 type Query = { [val: string]: QueryData | string };
@@ -41,7 +45,7 @@ const queryParser = (toParse: { [key: string]: unknown }): Query | undefined => 
 		const parsed = queryKeyValueParser(value);
 		if (parsed && Object.keys(parsed).length) {
 			ret[key] = parsed;
-		} else if (queryPagination.includes(key.toLowerCase() as QueryPaginationType) && isPositiveSafeInteger(value)) {
+		} else if (QUERY_PAGINATION.includes(key.toLowerCase() as QueryPaginationType) && isPositiveSafeInteger(value)) {
 			ret[key.toLowerCase()] = value as QueryData;
 		}
 	});
@@ -65,34 +69,36 @@ const queryKeyValueParser = (value: string | string[]): QueryData | undefined =>
 
 const queryStringParser = (value: string): QueryData | undefined => {
 	const split = value.toLowerCase().split(':') as [QueryParmsType, string];
-	if (split.length !== 2 || !queryParms.includes(split[0]) || !split[1]) {
+	if (split.length !== 2 || !QUERY_PARAMS.includes(split[0]) || !split[1]) {
 		return;
 	}
 	return { [split[0]]: split[1] };
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const getSQLAndData = (query: { [key: string]: unknown }, clazz: any): { sql: string; queryData: (string | number)[] } => {
+export const getSQLAndData = (
+	query: { [key: string]: unknown },
+	clazz: string[]
+): { sql: string; queryData: (string | number | string[])[] } => {
 	const parsedQuery = queryParser(query);
 	if (!parsedQuery) {
 		return { sql: '', queryData: [] };
 	}
 
-	const queryData: (string | number)[] = [];
+	const queryData: (string | number | string[])[] = [];
 	let isWhereInSql = false;
 	let sql = '';
 	let orderSql = '';
 
 	for (const key in parsedQuery) {
 		const queryKeys = parsedQuery[key];
-		if (typeof queryKeys !== 'string' && key in clazz) {
+		if (typeof queryKeys !== 'string' && clazz.includes(key)) {
 			for (const queryKey in queryKeys) {
 				const keyValue = queryKeys[queryKey as QueryParmsType];
 				if (key === 'lastEdit' && !isValideSQLTimestamp(keyValue)) {
 					continue;
 				}
-				if (queryKey !== 'order') {
-					sql += isWhereInSql ? ' AND ' : ' WHERE ';
+				if (!EXCLUDE_FROM_SQL_QUERY.includes(queryKey as QueryParmsType)) {
+					sql += isWhereInSql ? ` ${getTypesType(queryKeys.type?.toUpperCase())} ` : ' WHERE ';
 					isWhereInSql = true;
 				}
 
@@ -114,9 +120,21 @@ export const getSQLAndData = (query: { [key: string]: unknown }, clazz: any): { 
 					case 'contains':
 						sql += `LOCATE(?, ${key}) > 0`;
 						break;
+					case 'in': {
+						try {
+							const pushDataArray = JSON.parse(queryKeys[queryKey] ?? '');
+							if (Array.isArray(pushDataArray)) {
+								sql += ` ${isWhereInSql ? getTypesType(queryKeys.type?.toUpperCase()) : 'WHERE'} ${key} IN (?)`;
+								isWhereInSql = true;
+								queryData.push(pushDataArray);
+							}
+							// eslint-disable-next-line no-empty
+						} catch {}
+						continue;
+					}
 					case 'order': {
 						const data = queryKeys[queryKey]?.toUpperCase();
-						if (orders.includes(data as OrdersType)) {
+						if (ORDERS.includes(data as OrdersType)) {
 							orderSql += `${orderSql ? ',' : ' ORDER BY'} ${key} ${data}`;
 						}
 						continue;
@@ -135,7 +153,7 @@ export const getSQLAndData = (query: { [key: string]: unknown }, clazz: any): { 
 		sql += orderSql;
 	}
 
-	queryPagination.forEach(data => {
+	QUERY_PAGINATION.forEach(data => {
 		const parsedData = parsedQuery[data];
 		if (isPositiveSafeInteger(parsedData)) {
 			switch (data) {
@@ -152,4 +170,8 @@ export const getSQLAndData = (query: { [key: string]: unknown }, clazz: any): { 
 		}
 	});
 	return { sql, queryData };
+};
+
+const getTypesType = (type?: string): string => {
+	return type?.toUpperCase() ?? TYPES[0];
 };

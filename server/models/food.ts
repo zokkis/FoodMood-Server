@@ -15,10 +15,25 @@ interface IFood {
 	lastEdit?: string;
 }
 
+export const FOOD_PROPS: Array<keyof IFood> = [
+	'title',
+	'categoryId',
+	'rating',
+	'entityId',
+	'comment',
+	'description',
+	'price',
+	'brand',
+	'percentage',
+	'contentVolume',
+	'barCode',
+	'lastEdit',
+];
+
 export class Food implements IFood {
 	constructor(
-		public title: string = '',
-		public categoryId: number = -1,
+		public title: string,
+		public categoryId: number,
 		public rating: IRating = {},
 		public entityId?: number,
 		public comment?: string,

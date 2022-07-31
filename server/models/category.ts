@@ -10,10 +10,12 @@ interface ICategory {
 	lastEdit?: string;
 }
 
+export const CATEGORY_PROPS: Array<keyof ICategory> = ['categoryId', 'title', 'parentId', 'lastEdit'];
+
 export class Category implements ICategory {
 	constructor(
-		public categoryId: number = -1, //
-		public title: string = '',
+		public categoryId: number, //
+		public title: string,
 		public parentId?: number,
 		public lastEdit?: string
 	) {}

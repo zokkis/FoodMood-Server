@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { OkPacket } from 'mysql';
-import { Food } from '../models/food';
+import { Food, FOOD_PROPS } from '../models/food';
 import { defaultHttpResponseMessages } from '../models/httpResponse';
 import { DOCUMENT_PATH } from '../utils/constans';
 import { databaseQuerry, getCategoryById, getEntityWithId } from '../utils/database';
@@ -14,7 +14,7 @@ import { IRating } from '../models/rating';
 const logger = new Logger('Food');
 
 export const getAllFoods = (request: Request, response: Response): void => {
-	const { sql, queryData } = getSQLAndData(request.query, new Food());
+	const { sql, queryData } = getSQLAndData(request.query, FOOD_PROPS);
 
 	databaseQuerry<Food[]>('SELECT * FROM entity' + sql, queryData)
 		.then(data => response.json(data))
